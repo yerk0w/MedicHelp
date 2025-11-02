@@ -1,0 +1,81 @@
+const express = require('express');
+const router = express.Router();
+const auth = require('../middleware/auth');
+const HealthEntry = require('../User/HealthEntry');
+
+// POST /api/entries (Сохранение новой записи)
+router.post('/', auth, async (req, res) => {
+    try {
+        const {
+            entryDate,
+            medications,
+            headacheLevel,
+            symptomTags,
+            lifestyleTags,
+            notes
+        } = req.body;
+
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+
+        let entry = await HealthEntry.findOne({
+            userId: req.user.id,
+            entryDate: { $gte: start, $lte: end }
+        });
+
+        if (entry) {
+            entry.medications = medications;
+            entry.headacheLevel = headacheLevel;
+            entry.symptomTags = symptomTags;
+            entry.lifestyleTags = lifestyleTags;
+            entry.notes = notes;
+            entry.entryDate = entryDate || new Date();
+        } else {
+            entry = new HealthEntry({
+                userId: req.user.id,
+                entryDate: entryDate || new Date(),
+                medications,
+                headacheLevel,
+                symptomTags,
+                lifestyleTags,
+                notes
+            });
+        }
+
+        const savedEntry = await entry.save();
+        res.status(201).json(savedEntry);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Ошибка сервера');
+    }
+});
+
+// GET /api/entries/today (Загрузка плана для HomeScreen)
+router.get('/today', auth, async (req, res) => {
+    try {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+
+        const entry = await HealthEntry.findOne({
+            userId: req.user.id,
+            entryDate: { $gte: start, $lte: end }
+        }).sort({ entryDate: -1 });
+
+        if (!entry) {
+            return res.status(404).json({ message: 'Записей на сегодня нет' });
+        }
+        
+        res.json(entry.medications || []);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Ошибка сервера');
+    }
+});
+
+module.exports = router;

@@ -27,9 +27,39 @@ router.put('/', auth, async (req, res) => {
             return res.status(404).json({ message: 'Пользователь не найден' });
         }
 
-        user.medicalCard = req.body;
+        // Создаем безопасный объект медицинской карты
+        const sanitizedCard = {
+            fullName: req.body.fullName || '',
+            birthDate: req.body.birthDate || '',
+            bloodType: req.body.bloodType || '',
+            allergies: req.body.allergies || '',
+            chronicDiseases: req.body.chronicDiseases || '',
+            emergencyContact: req.body.emergencyContact || '',
+            insuranceNumber: req.body.insuranceNumber || '',
+            additionalInfo: req.body.additionalInfo || ''
+        };
 
+        // Ограничения на длину полей
+        const maxLengths = {
+            fullName: 100,
+            birthDate: 20,
+            bloodType: 10,
+            allergies: 500,
+            chronicDiseases: 500,
+            emergencyContact: 50,
+            insuranceNumber: 50,
+            additionalInfo: 1000
+        };
+
+        for (const [key, value] of Object.entries(sanitizedCard)) {
+            if (typeof value === 'string' && value.length > maxLengths[key]) {
+                sanitizedCard[key] = value.substring(0, maxLengths[key]);
+            }
+        }
+
+        user.medicalCard = sanitizedCard;
         await user.save();
+        
         res.status(200).json(user.medicalCard);
 
     } catch (err) {

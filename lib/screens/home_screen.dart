@@ -68,17 +68,18 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     try {
-      final response = await http
-          .get(Uri.parse('http://localhost:5000/api/entries/today'), headers: {
-        'Authorization': 'Bearer $token',
-      });
+      final response = await http.get(
+        Uri.parse('http://localhost:5001/api/entries/today'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> medsJson = json.decode(response.body);
         if (mounted) {
           setState(() {
-            _medications =
-                medsJson.map((json) => Medication.fromJson(json)).toList();
+            _medications = medsJson
+                .map((json) => Medication.fromJson(json))
+                .toList();
             _isLoadingPlan = false;
           });
         }
@@ -96,8 +97,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _isLoadingPlan = false;
           _medications = [];
         });
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Ошибка загрузки плана: $e")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Ошибка загрузки плана: $e")));
       }
     }
   }
@@ -162,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 80),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -176,9 +178,14 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.analytics), label: 'Аналитика'),
+            icon: Icon(Icons.analytics),
+            label: 'Аналитика',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.link), label: 'Лекарства'),
-          BottomNavigationBarItem(icon: Icon(Icons.description), label: 'Отчет'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.description),
+            label: 'Отчет',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
         ],
         currentIndex: _selectedIndex,
@@ -195,15 +202,16 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.only(top: 50, left: 24, right: 24, bottom: 24),
       decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF15A4C4), Color(0xFF33D4A3)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(30),
-            bottomRight: Radius.circular(30),
-          )),
+        gradient: LinearGradient(
+          colors: [Color(0xFF15A4C4), Color(0xFF33D4A3)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -242,22 +250,24 @@ class _HomeScreenState extends State<HomeScreen> {
             _isLoadingPlan
                 ? const Center(child: CircularProgressIndicator())
                 : _medications.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text(
-                            'План на сегодня пуст. Нажмите "+", чтобы добавить запись.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.lato(
-                                fontSize: 16, color: Colors.grey),
-                          ),
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'План на сегодня пуст. Нажмите "+", чтобы добавить запись.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.lato(
+                          fontSize: 16,
+                          color: Colors.grey,
                         ),
-                      )
-                    : Column(
-                        children: _medications
-                            .map((med) => _buildMedicationTile(med))
-                            .toList(),
                       ),
+                    ),
+                  )
+                : Column(
+                    children: _medications
+                        .map((med) => _buildMedicationTile(med))
+                        .toList(),
+                  ),
           ],
         ),
       ),
@@ -278,8 +288,10 @@ class _HomeScreenState extends State<HomeScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
       title: Text(medication.name, style: GoogleFonts.lato()),
-      trailing:
-          Text(medication.time, style: GoogleFonts.lato(color: Colors.grey)),
+      trailing: Text(
+        medication.time,
+        style: GoogleFonts.lato(color: Colors.grey),
+      ),
     );
   }
 
@@ -299,20 +311,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Динамика симптомов',
                   style: GoogleFonts.lato(
-                      fontWeight: FontWeight.bold, fontSize: 18),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            Text('Головная боль - 7 дней',
-                style: GoogleFonts.lato(color: Colors.grey)),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 120,
-              child: LineChart(
-                _mainchartData(),
-              ),
+            Text(
+              'Головная боль - 7 дней',
+              style: GoogleFonts.lato(color: Colors.grey),
             ),
+            const SizedBox(height: 20),
+            SizedBox(height: 120, child: LineChart(_mainchartData())),
           ],
         ),
       ),
@@ -328,8 +339,11 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.lightbulb_outline,
-              color: Color(0xFF007BFF), size: 30),
+          const Icon(
+            Icons.lightbulb_outline,
+            color: Color(0xFF007BFF),
+            size: 30,
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -337,8 +351,10 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Text(
                   'Ваш инсайд дня',
-                  style:
-                      GoogleFonts.lato(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: GoogleFonts.lato(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -347,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -359,7 +375,9 @@ class _HomeScreenState extends State<HomeScreen> {
       titlesData: FlTitlesData(
         leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: const AxisTitles(
+          sideTitles: SideTitles(showTitles: false),
+        ),
         bottomTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,

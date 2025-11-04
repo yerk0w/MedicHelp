@@ -35,10 +35,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     try {
-      final response = await http
-          .get(Uri.parse('http://localhost:5000/api/profile'), headers: {
-        'Authorization': 'Bearer $token',
-      });
+      final response = await http.get(
+        Uri.parse('http://localhost:5001/api/profile'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -61,8 +61,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Ошибка сети: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка сети: $e')));
       }
     }
   }
@@ -130,20 +131,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onRefresh: _loadProfileData,
         child: ListView(
           padding: EdgeInsets.zero,
-          children: [
-            _buildHeader(),
-            _buildMedicalCard(),
-          ],
+          children: [_buildHeader(), _buildMedicalCard()],
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.analytics), label: 'Аналитика'),
+            icon: Icon(Icons.analytics),
+            label: 'Аналитика',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.link), label: 'Лекарства'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.description), label: 'Отчет'),
+            icon: Icon(Icons.description),
+            label: 'Отчет',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
         ],
         currentIndex: _selectedIndex,
@@ -184,16 +186,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 _userName,
                 style: GoogleFonts.lato(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               Text(
                 _userEmail,
                 style: GoogleFonts.lato(fontSize: 16, color: Colors.white70),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -208,9 +211,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-              color: Colors.grey.shade200,
-              blurRadius: 10,
-              offset: const Offset(0, 5)),
+            color: Colors.grey.shade200,
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
         ],
       ),
       child: Column(
@@ -222,7 +226,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 "Медицинская карта",
                 style: GoogleFonts.lato(
-                    fontSize: 20, fontWeight: FontWeight.bold),
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               OutlinedButton(
                 onPressed: _navigateToEdit,
@@ -230,7 +236,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   foregroundColor: const Color(0xFF007BFF),
                   side: BorderSide(color: Colors.grey.shade300),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: const Text("Редактировать"),
               ),
@@ -238,22 +245,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
           _buildInfoRow(
-              "Полное имя", _medicalCard?['fullName'] ?? "Не указано"),
+            "Полное имя",
+            _medicalCard?['fullName'] ?? "Не указано",
+          ),
           _buildInfoRow(
-              "Дата рождения", _medicalCard?['birthDate'] ?? "Не указано"),
+            "Дата рождения",
+            _medicalCard?['birthDate'] ?? "Не указано",
+          ),
           _buildInfoRow(
-              "Группа крови", _medicalCard?['bloodType'] ?? "Не указано"),
+            "Группа крови",
+            _medicalCard?['bloodType'] ?? "Не указано",
+          ),
+          _buildInfoRow("Аллергии", _medicalCard?['allergies'] ?? "Не указано"),
           _buildInfoRow(
-              "Аллергии", _medicalCard?['allergies'] ?? "Не указано"),
-          _buildInfoRow("Хронические заболевания",
-              _medicalCard?['chronicDiseases'] ?? "Не указано"),
-          _buildInfoRow("Контакт для экстренной связи",
-              _medicalCard?['emergencyContact'] ?? "Не указано"),
-          _buildInfoRow("Номер медицинской страховки",
-              _medicalCard?['insuranceNumber'] ?? "Не указано"),
-          _buildInfoRow("Дополнительная информация",
-              _medicalCard?['additionalInfo'] ?? "Не указано",
-              isLast: true),
+            "Хронические заболевания",
+            _medicalCard?['chronicDiseases'] ?? "Не указано",
+          ),
+          _buildInfoRow(
+            "Контакт для экстренной связи",
+            _medicalCard?['emergencyContact'] ?? "Не указано",
+          ),
+          _buildInfoRow(
+            "Номер медицинской страховки",
+            _medicalCard?['insuranceNumber'] ?? "Не указано",
+          ),
+          _buildInfoRow(
+            "Дополнительная информация",
+            _medicalCard?['additionalInfo'] ?? "Не указано",
+            isLast: true,
+          ),
           const SizedBox(height: 24),
           TextButton.icon(
             onPressed: _logout,
@@ -261,12 +281,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label: Text(
               "Выйти из аккаунта",
               style: GoogleFonts.lato(
-                  color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
             style: TextButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],
@@ -288,11 +312,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           displayValue,
           style: GoogleFonts.lato(color: Colors.black, fontSize: 16),
         ),
-        if (!isLast)
-          const Divider(
-            height: 32,
-            thickness: 0.5,
-          ),
+        if (!isLast) const Divider(height: 32, thickness: 0.5),
       ],
     );
   }

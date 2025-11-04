@@ -29,22 +29,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _fullNameController =
-        TextEditingController(text: widget.medicalCard['fullName']);
-    _birthDateController =
-        TextEditingController(text: widget.medicalCard['birthDate']);
-    _bloodTypeController =
-        TextEditingController(text: widget.medicalCard['bloodType']);
-    _allergiesController =
-        TextEditingController(text: widget.medicalCard['allergies']);
-    _chronicDiseasesController =
-        TextEditingController(text: widget.medicalCard['chronicDiseases']);
-    _emergencyContactController =
-        TextEditingController(text: widget.medicalCard['emergencyContact']);
-    _insuranceNumberController =
-        TextEditingController(text: widget.medicalCard['insuranceNumber']);
-    _additionalInfoController =
-        TextEditingController(text: widget.medicalCard['additionalInfo']);
+    _fullNameController = TextEditingController(
+      text: widget.medicalCard['fullName'],
+    );
+    _birthDateController = TextEditingController(
+      text: widget.medicalCard['birthDate'],
+    );
+    _bloodTypeController = TextEditingController(
+      text: widget.medicalCard['bloodType'],
+    );
+    _allergiesController = TextEditingController(
+      text: widget.medicalCard['allergies'],
+    );
+    _chronicDiseasesController = TextEditingController(
+      text: widget.medicalCard['chronicDiseases'],
+    );
+    _emergencyContactController = TextEditingController(
+      text: widget.medicalCard['emergencyContact'],
+    );
+    _insuranceNumberController = TextEditingController(
+      text: widget.medicalCard['insuranceNumber'],
+    );
+    _additionalInfoController = TextEditingController(
+      text: widget.medicalCard['additionalInfo'],
+    );
   }
 
   @override
@@ -84,7 +92,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       final response = await http.put(
-        Uri.parse('http://localhost:5000/api/profile'),
+        Uri.parse('http://localhost:5001/api/profile'),
         headers: {
           'Content-Type': 'application/json; charset=UTF-8',
           'Authorization': 'Bearer $token',
@@ -147,18 +155,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         padding: const EdgeInsets.all(16.0),
         children: [
           _buildTextField(_fullNameController, 'Полное имя'),
-          _buildTextField(_birthDateController, 'Дата рождения',
-              hint: 'дд.мм.гггг'),
+          _buildTextField(
+            _birthDateController,
+            'Дата рождения',
+            hint: 'дд.мм.гггг',
+          ),
           _buildTextField(_bloodTypeController, 'Группа крови'),
           _buildTextField(_allergiesController, 'Аллергии', maxLines: 3),
-          _buildTextField(_chronicDiseasesController, 'Хронические заболевания',
-              maxLines: 3),
           _buildTextField(
-              _emergencyContactController, 'Контакт для экстренной связи'),
+            _chronicDiseasesController,
+            'Хронические заболевания',
+            maxLines: 3,
+          ),
           _buildTextField(
-              _insuranceNumberController, 'Номер медицинской страховки'),
-          _buildTextField(_additionalInfoController, 'Дополнительная информация',
-              maxLines: 4),
+            _emergencyContactController,
+            'Контакт для экстренной связи',
+          ),
+          _buildTextField(
+            _insuranceNumberController,
+            'Номер медицинской страховки',
+          ),
+          _buildTextField(
+            _additionalInfoController,
+            'Дополнительная информация',
+            maxLines: 4,
+          ),
         ],
       ),
       bottomNavigationBar: Padding(
@@ -169,10 +190,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             backgroundColor: const Color(0xFF007BFF),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             textStyle: GoogleFonts.lato(
-                fontSize: 18, fontWeight: FontWeight.bold),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           child: _isLoading
               ? const CircularProgressIndicator(color: Colors.white)
@@ -182,8 +206,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label,
-      {String? hint, int maxLines = 1}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label, {
+    String? hint,
+    int maxLines = 1,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
@@ -192,9 +220,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           Text(
             label,
             style: GoogleFonts.lato(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black54),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black54,
+            ),
           ),
           const SizedBox(height: 8),
           TextField(

@@ -13,10 +13,11 @@ class Medication {
   Medication({required this.name, this.taken = false, required this.time});
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'time': '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
-        'taken': taken,
-      };
+    'name': name,
+    'time':
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+    'taken': taken,
+  };
 }
 
 class EntryFormScreen extends StatefulWidget {
@@ -35,7 +36,10 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
   double _headacheLevel = 5.0;
 
   final List<Medication> _medications = [
-    Medication(name: 'Ибупрофен 400мг', time: const TimeOfDay(hour: 9, minute: 0)),
+    Medication(
+      name: 'Ибупрофен 400мг',
+      time: const TimeOfDay(hour: 9, minute: 0),
+    ),
     Medication(name: 'Витамин D', time: const TimeOfDay(hour: 12, minute: 0)),
   ];
   final List<String> _symptomTags = ['тошнота', 'усталость', 'головокружение'];
@@ -45,7 +49,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
     'тренировка',
     'кофе',
     'алкоголь',
-    'переедание'
+    'переедание',
   ];
 
   final Set<String> _selectedSymptomTags = {};
@@ -59,8 +63,9 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
       return;
     }
 
-    final List<Map<String, dynamic>> medsJson =
-        _medications.map((med) => med.toJson()).toList();
+    final List<Map<String, dynamic>> medsJson = _medications
+        .map((med) => med.toJson())
+        .toList();
 
     final body = json.encode({
       'entryDate': _selectedDate.toIso8601String(),
@@ -73,7 +78,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5000/api/entries'),
+        Uri.parse('http://localhost:5001/api/entries'),
         headers: {
           'Content-Type': 'application/json; charset=UTF-8',
           'Authorization': 'Bearer $token',
@@ -93,7 +98,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
       _showErrorDialog('Ошибка подключения: $e');
     }
   }
-  
+
   Future<void> _showAddMedicationDialog() async {
     final medNameController = TextEditingController();
     TimeOfDay? selectedTime = TimeOfDay.now();
@@ -209,9 +214,10 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
             Text(
               DateFormat('d MMMM y, HH:mm').format(_selectedDate),
               style: GoogleFonts.lato(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black54),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: Colors.black54,
+              ),
             ),
           ],
         ),
@@ -264,10 +270,13 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
             backgroundColor: const Color(0xFF007BFF),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             textStyle: GoogleFonts.lato(
-                fontSize: 18, fontWeight: FontWeight.bold),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           child: const Text('Сохранить запись'),
         ),
@@ -282,9 +291,10 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
         title,
         style: GoogleFonts.lato(
           textStyle: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
         ),
       ),
     );
@@ -341,15 +351,18 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
               children: [
                 Text(
                   'Уровень головной боли',
-                  style:
-                      GoogleFonts.lato(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: GoogleFonts.lato(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 Text(
                   '${_headacheLevel.toInt()}/10',
                   style: GoogleFonts.lato(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: const Color(0xFF007BFF)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: const Color(0xFF007BFF),
+                  ),
                 ),
               ],
             ),
@@ -370,8 +383,10 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Нет боли', style: GoogleFonts.lato(color: Colors.grey)),
-                Text('Сильная боль',
-                    style: GoogleFonts.lato(color: Colors.grey)),
+                Text(
+                  'Сильная боль',
+                  style: GoogleFonts.lato(color: Colors.grey),
+                ),
               ],
             ),
           ],
@@ -435,7 +450,9 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
           label: Text(
             '#$tag',
             style: GoogleFonts.lato(
-              color: isSelected ? const Color(0xFF007BFF) : Colors.grey.shade700,
+              color: isSelected
+                  ? const Color(0xFF007BFF)
+                  : Colors.grey.shade700,
             ),
           ),
           selected: isSelected,

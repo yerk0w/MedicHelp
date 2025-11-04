@@ -46,22 +46,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    const String apiUrl = 'http://localhost:5000/api/register';
+    const String apiUrl = 'http://localhost:5001/api/register';
     try {
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
-        body: jsonEncode({
-          'name': name,
-          'email': email,
-          'password': password,
-        }),
+        body: jsonEncode({'name': name, 'email': email, 'password': password}),
       );
       final Map<String, dynamic> responseData = json.decode(response.body);
 
       if (response.statusCode == 201) {
         if (mounted) {
-         _showSuccessDialog(responseData['message'] ?? 'Успешно');
+          _showSuccessDialog(responseData['message'] ?? 'Успешно');
         }
       } else {
         _showErrorDialog(responseData['message'] ?? 'Ошибка');
@@ -72,7 +68,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _showErrorDialog(String message) {
-     if (!mounted) return;
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) {
@@ -93,7 +89,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _showSuccessDialog(String message) {
-     if (!mounted) return;
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) {
@@ -114,8 +110,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String label, String hint,
-      {Widget? suffixIcon}) {
+  InputDecoration _buildInputDecoration(
+    String label,
+    String hint, {
+    Widget? suffixIcon,
+  }) {
     return InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(color: Colors.black54),
@@ -150,9 +149,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             children: <Widget>[
-              const SizedBox(
-                height: 50.0,
-              ),
+              const SizedBox(height: 50.0),
               Column(
                 children: [
                   Container(
@@ -161,12 +158,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(Icons.show_chart,
-                        color: Color(0xFF15A4C4), size: 40),
+                    child: const Icon(
+                      Icons.show_chart,
+                      color: Color(0xFF15A4C4),
+                      size: 40,
+                    ),
                   ),
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
                   Text(
                     'Health Compass',
                     style: GoogleFonts.lato(
@@ -212,14 +210,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 20.0),
                     TextField(
                       controller: _nameController,
-                      decoration:
-                          _buildInputDecoration('Имя', 'Ваше полное имя'),
+                      decoration: _buildInputDecoration(
+                        'Имя',
+                        'Ваше полное имя',
+                      ),
                     ),
                     const SizedBox(height: 16.0),
                     TextField(
                       controller: _emailController,
                       decoration: _buildInputDecoration(
-                          'Email или телефон', 'erkhan@gmail.com'),
+                        'Email или телефон',
+                        'erkhan@gmail.com',
+                      ),
                       keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: 16.0),
@@ -277,29 +279,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       onPressed: _registerUser,
-                      child: const Text('Зарегистрироваться',
-                          style:
-                              TextStyle(color: Colors.white, fontSize: 18.0)),
+                      child: const Text(
+                        'Зарегистрироваться',
+                        style: TextStyle(color: Colors.white, fontSize: 18.0),
+                      ),
                     ),
                     const SizedBox(height: 20.0),
-                    const Text('или',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey)),
+                    const Text(
+                      'или',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
                     TextButton(
                       onPressed: () {
                         Navigator.pushReplacementNamed(context, '/login');
                       },
                       child: RichText(
                         text: const TextSpan(
-                          style:
-                              TextStyle(color: Colors.black54, fontSize: 16),
+                          style: TextStyle(color: Colors.black54, fontSize: 16),
                           children: <TextSpan>[
                             TextSpan(text: 'Уже есть аккаунт? '),
                             TextSpan(
-                                text: 'Войти',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF007BFF))),
+                              text: 'Войти',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF007BFF),
+                              ),
+                            ),
                           ],
                         ),
                       ),

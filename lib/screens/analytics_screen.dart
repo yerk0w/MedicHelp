@@ -39,7 +39,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     try {
       final response = await http
-          .get(Uri.parse('http://localhost:5000/api/analytics'), headers: {
+          .get(Uri.parse('http://localhost:5001/api/analytics'), headers: {
         'Authorization': 'Bearer $token',
       });
 

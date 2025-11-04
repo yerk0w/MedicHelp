@@ -3,8 +3,6 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const User = require('../User/User');
 
-// GET /api/profile
-// Получить данные профиля пользователя
 router.get('/', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
@@ -22,8 +20,6 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
-// PUT /api/profile
-// Обновить медкарту пользователя
 router.put('/', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);

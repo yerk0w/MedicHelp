@@ -21,7 +21,7 @@ class HealthCompassApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: const Color(0xFF15A4C4),
       ),
-      home: RegisterScreen(),
+      home: LoginScreen(),
       routes: {
         '/home': (context) => const HomeScreen(),
         '/login': (context) => LoginScreen(),

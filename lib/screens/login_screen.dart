@@ -49,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         await _storage.write(key: 'jwt_token', value: responseData['token']);
         await _storage.write(key: 'user_name', value: responseData['name']);
-        await _storage.write(key: 'user_email', value: email); // <-- ВОТ ЭТО ИЗМЕНЕНИЕ
+        await _storage.write(key: 'user_email', value: email); 
 
         if (mounted) {
           Navigator.pushReplacement(
@@ -261,4 +261,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-}
+} 

@@ -3,7 +3,6 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const HealthEntry = require('../User/HealthEntry');
 
-// POST /api/entries (Сохранение новой записи)
 router.post('/', auth, async (req, res) => {
     try {
         const {
@@ -53,7 +52,6 @@ router.post('/', auth, async (req, res) => {
     }
 });
 
-// GET /api/entries/today (Загрузка плана для HomeScreen)
 router.get('/today', auth, async (req, res) => {
     try {
         const start = new Date();

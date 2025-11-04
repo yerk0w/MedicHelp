@@ -4,15 +4,10 @@ const auth = require('../middleware/auth');
 const HealthEntry = require('../User/HealthEntry');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Инициализируем Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// @route   GET api/analytics
-// @desc    Получить ИИ-аналитику по записям пользователя
-// @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    // 1. Находим все записи пользователя в БД
     const entries = await HealthEntry.find({ userId: req.user.id }).sort({ entryDate: 1 });
 
     if (entries.length < 3) {
@@ -21,7 +16,6 @@ router.get('/', auth, async (req, res) => {
       });
     }
 
-    // 2. Форматируем данные в JSON для ИИ
     const dataForAI = entries.map(entry => ({
       date: entry.entryDate,
       headache: entry.headacheLevel,
@@ -31,7 +25,6 @@ router.get('/', auth, async (req, res) => {
       notes: entry.notes
     }));
 
-    // 3. Создаем промпт для ИИ
     const prompt = `
       Ты — "Компас Здоровья", ИИ-ассистент в медицинском приложении.
       Твоя задача — проанализировать JSON-данные о здоровье пользователя и найти 3-4 ключевые корреляции или вывода.
@@ -49,13 +42,11 @@ router.get('/', auth, async (req, res) => {
       Начинай каждый пункт со знака '* '.
     `;
 
-    // 4. Отправляем запрос в Gemini
     const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const aiInsights = response.text();
 
-    // 5. Отправляем выводы во Flutter
     res.status(200).json({ insights: aiInsights });
 
   } catch (err) {

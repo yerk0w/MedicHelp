@@ -4,10 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
 const User = require("./User/User");
-const auth = require("./middleware/auth");
-const { sendResetEmail } = require("./utils/emailService");
 const VerificationCode = require("./User/VerificationCode");
 const {
   generateVerificationCode,
@@ -145,81 +142,13 @@ app.post("/api/login", async (req, res) => {
           token: token,
           name: user.name,
           email: user.email,
+          userId: user._id,
           role: user.role || "patient",
         });
       }
     );
   } catch (error) {
     console.error("Ошибка при входе пользователя:", error);
-    res.status(500).json({ message: "Ошибка сервера" });
-  }
-});
-
-app.post("/api/patients", auth, async (req, res) => {
-  try {
-    if (!req.user?.role || req.user.role !== "doctor") {
-      return res
-        .status(403)
-        .json({ message: "Только врач может добавлять пациентов" });
-    }
-
-    const { name, email, temporaryPassword } = req.body;
-
-    if (!name || !email) {
-      return res
-        .status(400)
-        .json({ message: "Имя и email пациента обязательны" });
-    }
-
-    if (name.trim().length < 2) {
-      return res
-        .status(400)
-        .json({ message: "Имя должно содержать минимум 2 символа" });
-    }
-
-    if (!validateEmail(email)) {
-      return res.status(400).json({ message: "Неверный формат email" });
-    }
-
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      return res
-        .status(400)
-        .json({ message: "Пациент с таким email уже существует" });
-    }
-
-    let plainPassword = temporaryPassword;
-    if (plainPassword) {
-      if (!validatePassword(plainPassword)) {
-        return res
-          .status(400)
-          .json({ message: "Пароль должен содержать минимум 6 символов" });
-      }
-    } else {
-      plainPassword = crypto.randomBytes(4).toString("hex");
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(plainPassword, salt);
-
-    const patient = new User({
-      name: name.trim(),
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      role: "patient",
-      assignedDoctor: req.user.id,
-    });
-
-    const savedPatient = await patient.save();
-
-    res.status(201).json({
-      message:
-        "Пациент добавлен. Передайте временный пароль клиенту для первого входа.",
-      patientId: savedPatient._id,
-      temporaryPassword: plainPassword,
-    });
-  } catch (error) {
-    console.error("Ошибка при добавлении пациента:", error);
     res.status(500).json({ message: "Ошибка сервера" });
   }
 });
@@ -325,5 +254,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use("/api/courses", require("./routes/courses"));
 app.use("/api/report", require("./routes/report"));
 app.use("/api/insight", require("./routes/insight"));
+app.use("/api/patients", require("./routes/patients"));
+app.use("/api/chat", require("./routes/chat"));
 
 app.listen(PORT, () => console.log(`server run on port ${PORT}`));

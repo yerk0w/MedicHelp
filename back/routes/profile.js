@@ -9,11 +9,26 @@ router.get("/", auth, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
+
+    let assignedDoctorInfo = null;
+    if (user.assignedDoctor) {
+      const doctor = await User.findById(user.assignedDoctor).select(
+        "name email",
+      );
+      if (doctor) {
+        assignedDoctorInfo = {
+          id: doctor._id,
+          name: doctor.name,
+          email: doctor.email,
+        };
+      }
+    }
     res.json({
       name: user.name,
       email: user.email,
       role: user.role,
       assignedDoctor: user.assignedDoctor,
+      assignedDoctorInfo,
       medicalCard: user.medicalCard,
     });
   } catch (err) {

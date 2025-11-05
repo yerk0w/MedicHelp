@@ -56,6 +56,9 @@ class _LoginScreenState extends State<LoginScreen> {
           key: 'user_role',
           value: responseData['role'] ?? 'patient',
         );
+        if (responseData['userId'] != null) {
+          await _storage.write(key: 'user_id', value: responseData['userId']);
+        }
 
         if (mounted) {
           Navigator.pushReplacement(

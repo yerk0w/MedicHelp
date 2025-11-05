@@ -24,6 +24,7 @@ class ApiService {
     await _storage.delete(key: 'user_name');
     await _storage.delete(key: 'user_email');
     await _storage.delete(key: 'user_role');
+    await _storage.delete(key: 'user_id');
   }
 
 
@@ -109,8 +110,11 @@ class ApiService {
   }
 
 
-  static Future<List<dynamic>> getCourses() async {
-    final response = await get(ApiConfig.courses);
+  static Future<List<dynamic>> getCourses({String? patientId}) async {
+    final String url = patientId != null && patientId.isNotEmpty
+        ? ApiConfig.coursesForPatient(patientId)
+        : ApiConfig.courses;
+    final response = await get(url);
     final body = json.decode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -129,9 +133,14 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> createCourse(
-    Map<String, dynamic> courseData,
-  ) async {
-    final response = await post(ApiConfig.courses, courseData);
+    Map<String, dynamic> courseData, {
+    String? patientId,
+  }) async {
+    final payload = Map<String, dynamic>.from(courseData);
+    if (patientId != null && patientId.isNotEmpty) {
+      payload['patientId'] = patientId;
+    }
+    final response = await post(ApiConfig.courses, payload);
     return handleResponse(response);
   }
 
@@ -194,6 +203,25 @@ class ApiService {
     return handleResponse(response);
   }
 
+  static Future<List<dynamic>> getDoctorPatients() async {
+    final response = await get(ApiConfig.patients);
+    final body = json.decode(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (body is List) {
+        return body;
+      }
+      return [];
+    } else {
+      throw Exception(body['message'] ?? 'Ошибка сервера');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getPatientProfileById(
+    String patientId,
+  ) async {
+    final response = await get(ApiConfig.patientById(patientId));
+    return handleResponse(response);
+  }
 
   static Future<Map<String, dynamic>> createPatient(
     Map<String, dynamic> patientData,
@@ -217,6 +245,28 @@ class ApiService {
       ApiConfig.medicationByCourse(courseId),
       medicationData,
     );
+    return handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getChatMessages({
+    String? patientId,
+  }) async {
+    final uri = patientId != null && patientId.isNotEmpty
+        ? '${ApiConfig.chat}?patientId=$patientId'
+        : ApiConfig.chat;
+    final response = await get(uri);
+    return handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> sendChatMessage(
+    String message, {
+    String? patientId,
+  }) async {
+    final payload = <String, dynamic>{'message': message};
+    if (patientId != null && patientId.isNotEmpty) {
+      payload['patientId'] = patientId;
+    }
+    final response = await post(ApiConfig.chat, payload);
     return handleResponse(response);
   }
 

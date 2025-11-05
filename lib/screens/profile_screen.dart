@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medichelp/screens/edit_profile_screen.dart';
 import 'package:medichelp/screens/login_screen.dart';
 import 'package:medichelp/screens/courses_screen.dart';
+import 'package:medichelp/screens/doctor_home_screen.dart';
+import 'package:medichelp/screens/chat_screen.dart';
 import 'package:medichelp/services/api_service.dart';
 import 'package:medichelp/models/course_model.dart';
 
@@ -18,7 +20,9 @@ class ProfileScreenContent extends StatefulWidget {
 class _ProfileScreenContentState extends State<ProfileScreenContent> {
   String _userName = "Загрузка...";
   String _userEmail = "...";
+  String _role = 'patient';
   MedicalCard? _medicalCard;
+  AssignedDoctorInfo? _assignedDoctor;
   bool _isLoading = true;
 
   @override
@@ -40,6 +44,8 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
         setState(() {
           _userName = profile.name;
           _userEmail = profile.email;
+          _role = profile.role;
+          _assignedDoctor = profile.assignedDoctor;
           _medicalCard = profile.medicalCard;
           _isLoading = false;
         });
@@ -108,6 +114,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                 children: [
                   _buildHeader(),
                   _buildActionButtons(),
+                  if (_role == 'patient') _buildDoctorInfoCard(),
                   _buildMedicalCard(),
                 ],
               ),
@@ -164,6 +171,33 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
   }
 
   Widget _buildActionButtons() {
+    if (_role == 'doctor') {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: ElevatedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const DoctorHomeScreen(),
+              ),
+            );
+          },
+          icon: const Icon(Icons.people_alt, size: 20),
+          label: const Text('Перейти к пациентам'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF007BFF),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: 2,
+          ),
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
@@ -184,6 +218,73 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildDoctorInfoCard() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Ваш лечащий врач',
+            style: GoogleFonts.lato(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_assignedDoctor != null) ...[
+            Text(
+              _assignedDoctor!.name,
+              style: GoogleFonts.lato(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _assignedDoctor!.email,
+              style: GoogleFonts.lato(color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      isDoctorView: false,
+                      title: _assignedDoctor!.name,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('Написать врачу'),
+            ),
+          ] else
+            Text(
+              'Врач еще не назначен. Обратитесь в клинику для привязки к врачу.',
+              style: GoogleFonts.lato(color: Colors.black54, height: 1.4),
+            ),
         ],
       ),
     );

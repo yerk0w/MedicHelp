@@ -135,19 +135,50 @@ class MedicationTaken {
 class UserProfile {
   final String name;
   final String email;
+  final String role;
+  final AssignedDoctorInfo? assignedDoctor;
   final MedicalCard medicalCard;
 
   UserProfile({
     required this.name,
     required this.email,
+    required this.role,
+    required this.assignedDoctor,
     required this.medicalCard,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
+    AssignedDoctorInfo? doctor;
+    if (json['assignedDoctorInfo'] is Map<String, dynamic>) {
+      doctor =
+          AssignedDoctorInfo.fromJson(json['assignedDoctorInfo'] as Map<String, dynamic>);
+    }
     return UserProfile(
       name: json['name'],
       email: json['email'],
+      role: json['role'] ?? 'patient',
+      assignedDoctor: doctor,
       medicalCard: MedicalCard.fromJson(json['medicalCard'] ?? {}),
+    );
+  }
+}
+
+class AssignedDoctorInfo {
+  final String id;
+  final String name;
+  final String email;
+
+  AssignedDoctorInfo({
+    required this.id,
+    required this.name,
+    required this.email,
+  });
+
+  factory AssignedDoctorInfo.fromJson(Map<String, dynamic> json) {
+    return AssignedDoctorInfo(
+      id: json['id'] ?? json['_id'] ?? '',
+      name: json['name'] ?? '',
+      email: json['email'] ?? '',
     );
   }
 }

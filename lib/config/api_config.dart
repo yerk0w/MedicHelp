@@ -34,9 +34,14 @@ class ApiConfig {
   static String get courses => '$baseUrl/api/courses';
   static String get insightToday => '$baseUrl/api/insight/today';
   static String get patients => '$baseUrl/api/patients';
+  static String get chat => '$baseUrl/api/chat';
 
 
   static String courseById(String courseId) => '$baseUrl/api/courses/$courseId';
+  static String patientById(String patientId) =>
+      '$baseUrl/api/patients/$patientId';
+  static String coursesForPatient(String patientId) =>
+      '${ApiConfig.courses}?patientId=$patientId';
   static String reportByCourse(String courseId) =>
       '$baseUrl/api/report/$courseId';
   static String medicationByCourse(String courseId) =>

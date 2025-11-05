@@ -6,6 +6,10 @@ const TreatmentCourseSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  doctorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
   name: {
     type: String,
     required: true,

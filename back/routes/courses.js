@@ -1,12 +1,34 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
 const TreatmentCourse = require("../User/TreatmentCourse");
 const Medication = require("../User/Medication");
+const User = require("../User/User");
+
+const canAccessCourse = (course, user) => {
+  if (!course) {
+    return false;
+  }
+
+  if (course.userId.toString() === user.id) {
+    return true;
+  }
+
+  if (
+    user.role === "doctor" &&
+    course.doctorId &&
+    course.doctorId.toString() === user.id
+  ) {
+    return true;
+  }
+
+  return false;
+};
 
 router.post("/", auth, async (req, res) => {
   try {
-    const { name, mainSymptom, startDate, endDate } = req.body;
+    const { name, mainSymptom, startDate, endDate, patientId } = req.body;
 
     if (!name || !mainSymptom) {
       return res
@@ -14,8 +36,33 @@ router.post("/", auth, async (req, res) => {
         .json({ message: "Название и основной симптом обязательны" });
     }
 
+    let ownerId = req.user.id;
+    let doctorId = null;
+
+    if (req.user.role === "doctor") {
+      if (!patientId || !mongoose.Types.ObjectId.isValid(patientId)) {
+        return res
+          .status(400)
+          .json({ message: "Укажите корректного пациента для курса" });
+      }
+
+      const patient = await User.findOne({
+        _id: patientId,
+        role: "patient",
+        assignedDoctor: req.user.id,
+      });
+
+      if (!patient) {
+        return res.status(404).json({ message: "Пациент не найден" });
+      }
+
+      ownerId = patient._id;
+      doctorId = req.user.id;
+    }
+
     const newCourse = new TreatmentCourse({
-      userId: req.user.id,
+      userId: ownerId,
+      doctorId,
       name,
       mainSymptom,
       startDate: startDate || Date.now(),
@@ -32,9 +79,41 @@ router.post("/", auth, async (req, res) => {
 
 router.get("/", auth, async (req, res) => {
   try {
-    const courses = await TreatmentCourse.find({ userId: req.user.id }).sort({
-      startDate: -1,
-    });
+    let query = {};
+    let cursor;
+
+    if (req.user.role === "doctor") {
+      query = { doctorId: req.user.id };
+      const { patientId } = req.query;
+      if (patientId) {
+        if (!mongoose.Types.ObjectId.isValid(patientId)) {
+          return res
+            .status(400)
+            .json({ message: "Некорректный идентификатор пациента" });
+        }
+
+        const patient = await User.findOne({
+          _id: patientId,
+          role: "patient",
+          assignedDoctor: req.user.id,
+        });
+
+        if (!patient) {
+          return res.status(404).json({ message: "Пациент не найден" });
+        }
+
+        query.userId = patient._id;
+      }
+
+      cursor = TreatmentCourse.find(query)
+        .sort({ startDate: -1 })
+        .populate("userId", "name email");
+    } else {
+      query = { userId: req.user.id };
+      cursor = TreatmentCourse.find(query).sort({ startDate: -1 });
+    }
+
+    const courses = await cursor;
     res.json(courses);
   } catch (err) {
     console.error(err.message);
@@ -44,13 +123,16 @@ router.get("/", auth, async (req, res) => {
 
 router.get("/:courseId", auth, async (req, res) => {
   try {
-    const course = await TreatmentCourse.findById(req.params.courseId);
+    const course = await TreatmentCourse.findById(req.params.courseId).populate(
+      "userId",
+      "name email",
+    );
 
     if (!course) {
       return res.status(404).json({ message: "Курс не найден" });
     }
 
-    if (course.userId.toString() !== req.user.id) {
+    if (!canAccessCourse(course, req.user)) {
       return res.status(403).json({ message: "Доступ запрещен" });
     }
 
@@ -58,10 +140,7 @@ router.get("/:courseId", auth, async (req, res) => {
       courseId: req.params.courseId,
     });
 
-    res.json({
-      course,
-      medications,
-    });
+    res.json({ course, medications });
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Ошибка сервера");
@@ -84,7 +163,7 @@ router.post("/:courseId/medications", auth, async (req, res) => {
       return res.status(404).json({ message: "Курс не найден" });
     }
 
-    if (course.userId.toString() !== req.user.id) {
+    if (!canAccessCourse(course, req.user)) {
       return res.status(403).json({ message: "Доступ запрещен" });
     }
 
@@ -113,7 +192,7 @@ router.put("/:courseId", auth, async (req, res) => {
       return res.status(404).json({ message: "Курс не найден" });
     }
 
-    if (course.userId.toString() !== req.user.id) {
+    if (!canAccessCourse(course, req.user)) {
       return res.status(403).json({ message: "Доступ запрещен" });
     }
 
@@ -138,7 +217,7 @@ router.delete("/:courseId", auth, async (req, res) => {
       return res.status(404).json({ message: "Курс не найден" });
     }
 
-    if (course.userId.toString() !== req.user.id) {
+    if (!canAccessCourse(course, req.user)) {
       return res.status(403).json({ message: "Доступ запрещен" });
     }
 
@@ -161,7 +240,7 @@ router.put("/:courseId/medications/:medId", auth, async (req, res) => {
     if (!course) {
       return res.status(404).json({ message: "Курс не найден" });
     }
-    if (course.userId.toString() !== req.user.id) {
+    if (!canAccessCourse(course, req.user)) {
       return res.status(403).json({ message: "Доступ запрещен" });
     }
 
@@ -188,7 +267,7 @@ router.delete("/:courseId/medications/:medId", auth, async (req, res) => {
     if (!course) {
       return res.status(404).json({ message: "Курс не найден" });
     }
-    if (course.userId.toString() !== req.user.id) {
+    if (!canAccessCourse(course, req.user)) {
       return res.status(403).json({ message: "Доступ запрещен" });
     }
 

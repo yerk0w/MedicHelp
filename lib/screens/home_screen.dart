@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:medichelp/config/api_config.dart';
+import 'package:medichelp/screens/chat_screen.dart';
+import 'package:medichelp/services/api_service.dart';
 import 'dart:convert';
 
 class HomeScreenContent extends StatefulWidget {
@@ -32,6 +34,8 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
   String _healthFactText = "Загрузка факта...";
   String _motivationText = "";
   bool _hasEntryToday = true;
+  bool _hasDoctor = false;
+  String? _doctorName;
 
   @override
   void initState() {
@@ -41,6 +45,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
 
   Future<void> _loadInitialData() async {
     await _loadUserName();
+    await _loadDoctorInfo();
     await _loadTodayPlan();
     await _loadCourseProgress();
     await _loadDailyInsight();
@@ -213,6 +218,34 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
         _hasEntryToday = false;
         _isLoadingInsight = false;
       });
+    }
+  }
+
+  Future<void> _loadDoctorInfo() async {
+    try {
+      final role = await _storage.read(key: 'user_role');
+      if (role == 'doctor') {
+        return;
+      }
+      final profile = await ApiService.getProfile();
+      final doctor = profile['assignedDoctorInfo'];
+      if (mounted) {
+        setState(() {
+          if (doctor is Map<String, dynamic>) {
+            _hasDoctor = true;
+            _doctorName = doctor['name'] as String?;
+          } else {
+            _hasDoctor = false;
+            _doctorName = null;
+          }
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _hasDoctor = false;
+        });
+      }
     }
   }
   
@@ -477,6 +510,37 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                       style: GoogleFonts.lato(
                         fontSize: 12,
                         color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                  if (_hasDoctor) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatScreen(
+                              isDoctorView: false,
+                              title: _doctorName ?? 'Мой врач',
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: Text(
+                        _doctorName != null
+                            ? 'Написать доктору $_doctorName'
+                            : 'Написать врачу',
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Вы еще не связаны с доктором в приложении.',
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        color: Colors.black38,
                       ),
                     ),
                   ],

@@ -16,7 +16,7 @@ router.get("/", auth, async (req, res) => {
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Ошибка сервера");
+    res.status(500).json({ message: "Ошибка сервера" });
   }
 });
 
@@ -61,7 +61,7 @@ router.put("/", auth, async (req, res) => {
     res.status(200).json(user.medicalCard);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Ошибка сервера");
+    res.status(500).json({ message: "Ошибка сервера" });
   }
 });
 

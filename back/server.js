@@ -11,7 +11,6 @@ const PORT = process.env.PORT || 5001;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Проверка обязательных переменных окружения
 if (!MONGO_URI) {
     console.error("ОШИБКА: MONGO_URI не установлен в .env файле");
     process.exit(1);
@@ -31,13 +30,11 @@ mongoose.connect(MONGO_URI)
 app.use(cors());
 app.use(express.json());
 
-// Валидация email
 const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 };
 
-// Валидация пароля (минимум 6 символов)
 const validatePassword = (password) => {
     return password && password.length >= 6;
 };
@@ -46,22 +43,18 @@ app.post("/api/register", async (req, res) => {
     try {
         const { name, email, password } = req.body;
         
-        // Базовая валидация
         if (!name || !email || !password) {
             return res.status(400).json({ message: "Пожалуйста заполните все поля" });
         }
         
-        // Валидация email
         if (!validateEmail(email)) {
             return res.status(400).json({ message: "Неверный формат email" });
         }
         
-        // Валидация пароля
         if (!validatePassword(password)) {
             return res.status(400).json({ message: "Пароль должен содержать минимум 6 символов" });
         }
         
-        // Проверка имени
         if (name.trim().length < 2) {
             return res.status(400).json({ message: "Имя должно содержать минимум 2 символа" });
         }
@@ -94,7 +87,6 @@ app.post ("/api/login", async (req, res) => {
             return res.status(400).json({ message: "Пожалуйста заполните все поля" });
         }
         
-        // Нормализация email
         const normalizedEmail = email.toLowerCase();
         
         const user = await User.findOne({ email: normalizedEmail });
@@ -129,7 +121,6 @@ app.post ("/api/login", async (req, res) => {
     }
 });
 
-// Простая функция восстановления пароля (для демонстрации)
 app.post("/api/forgot-password", async (req, res) => {
     try {
         const { email } = req.body;

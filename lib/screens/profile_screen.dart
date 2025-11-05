@@ -233,6 +233,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              
               Text(
                 "Медицинская карта",
                 style: GoogleFonts.lato(
@@ -240,16 +241,29 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              OutlinedButton(
-                onPressed: _navigateToEdit,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF007BFF),
-                  side: BorderSide(color: Colors.grey.shade300),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              SizedBox(
+                width: 120, 
+                child: OutlinedButton(
+                  onPressed: _navigateToEdit,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF007BFF),
+                    side: BorderSide(color: Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ), 
+                  ),
+                  child: const Text(
+                    "Редактировать",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-                child: const Text("Редактировать"),
               ),
             ],
           ),

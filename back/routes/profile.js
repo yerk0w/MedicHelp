@@ -12,6 +12,8 @@ router.get("/", auth, async (req, res) => {
     res.json({
       name: user.name,
       email: user.email,
+      role: user.role,
+      assignedDoctor: user.assignedDoctor,
       medicalCard: user.medicalCard,
     });
   } catch (err) {

@@ -28,8 +28,10 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
   int _totalDays = 0;
   double _progress = 0.0;
 
-  // Инсайд дня
-  String _insightText = "Загрузка инсайта...";
+  // Инсайды дня
+  String _healthFactText = "Загрузка факта...";
+  String _motivationText = "";
+  bool _hasEntryToday = true;
 
   @override
   void initState() {
@@ -178,25 +180,37 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
       if (response.statusCode == 200) {
         final dynamic data = json.decode(response.body);
 
-        // ИСПРАВЛЕНИЕ: проверяем тип
-        String insightText = 'Нет инсайта на сегодня';
+        String healthFact = "Нет факта на сегодня";
+        String motivation = "Добавьте запись о приеме лекарств, чтобы получить мотивацию.";
+        bool hasEntryToday = false;
+
         if (data is Map<String, dynamic>) {
-          insightText = data['insight'] ?? 'Нет инсайта на сегодня';
+          healthFact = data['healthFact'] ?? healthFact;
+          motivation = data['motivation'] ?? motivation;
+          hasEntryToday = data['hasEntryToday'] is bool
+              ? data['hasEntryToday'] as bool
+              : hasEntryToday;
         }
 
         setState(() {
-          _insightText = insightText;
+          _healthFactText = healthFact;
+          _motivationText = motivation;
+          _hasEntryToday = hasEntryToday;
           _isLoadingInsight = false;
         });
       } else {
         setState(() {
-          _insightText = 'Не удалось загрузить инсайт';
+          _healthFactText = 'Не удалось загрузить подсказки';
+          _motivationText = 'Попробуйте обновить страницу позже.';
+          _hasEntryToday = false;
           _isLoadingInsight = false;
         });
       }
     } catch (e) {
       setState(() {
-        _insightText = 'Ошибка загрузки инсайта';
+        _healthFactText = 'Ошибка загрузки данных';
+        _motivationText = 'Проверьте подключение к сети и повторите попытку.';
+        _hasEntryToday = false;
         _isLoadingInsight = false;
       });
     }
@@ -415,20 +429,58 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Ваш инсайд дня',
+                  'Компас здоровья',
                   style: GoogleFonts.lato(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: 4),
-                _isLoadingInsight
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_insightText, style: GoogleFonts.lato()),
+                const SizedBox(height: 8),
+                if (_isLoadingInsight)
+                  const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else ...[
+                  Text(
+                    'Интересный факт',
+                    style: GoogleFonts.lato(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: const Color(0xFF007BFF),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _healthFactText,
+                    style: GoogleFonts.lato(),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Мотивация на сегодня',
+                    style: GoogleFonts.lato(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: const Color(0xFF007BFF),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _motivationText,
+                    style: GoogleFonts.lato(),
+                  ),
+                  if (!_hasEntryToday) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Добавьте сегодняшнюю запись, чтобы получить персональные рекомендации.',
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ],
               ],
             ),
           ),

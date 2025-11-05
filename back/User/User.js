@@ -14,9 +14,19 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  role: {
+    type: String,
+    enum: ["doctor", "patient"],
+    default: "patient",
+  },
+  assignedDoctor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
   registeredAt: {
     type: Date,
-    required: true,
+    default: Date.now,
   },
   medicalCard: {
     type: Object,

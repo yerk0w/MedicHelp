@@ -54,7 +54,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: ApiConfig.defaultHeaders,
-        body: jsonEncode({'name': name, 'email': email, 'password': password}),
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'password': password,
+          'role': 'doctor',
+        }),
       );
       final Map<String, dynamic> responseData = json.decode(response.body);
 
@@ -180,7 +185,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Начните заботиться о своем здаровье',
+                    'Создайте учетную запись врача клиники',
                     style: GoogleFonts.lato(
                       textStyle: const TextStyle(
                         color: Colors.white,
@@ -201,7 +206,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     Text(
-                      'Регистрация',
+                      'Регистрация врача',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.lato(
                         textStyle: const TextStyle(
@@ -209,6 +214,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 20.0),
+                    const Text(
+                      'После регистрации вы сможете создавать профили пациентов и назначать курсы лечения.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.black54),
                     ),
                     const SizedBox(height: 20.0),
                     TextField(
@@ -222,7 +233,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextField(
                       controller: _emailController,
                       decoration: _buildInputDecoration(
-                        'Email или телефон',
+                        'Email',
                         'erkhan@gmail.com',
                       ),
                       keyboardType: TextInputType.emailAddress,

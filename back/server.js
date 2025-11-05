@@ -1,10 +1,12 @@
 require("dotenv").config();
-const mongoose = require('mongoose');
-const express = require('express');
-const cors = require('cors');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const User = require('./User/User')
+const mongoose = require("mongoose");
+const express = require("express");
+const cors = require("cors");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const User = require("./User/User");
+const auth = require("./middleware/auth");
 const { sendResetEmail } = require("./utils/emailService");
 const VerificationCode = require("./User/VerificationCode");
 const {
@@ -47,85 +49,179 @@ const validatePassword = (password) => {
 };
 
 app.post("/api/register", async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
-        
-        if (!name || !email || !password) {
-            return res.status(400).json({ message: "Пожалуйста заполните все поля" });
-        }
-        
-        if (!validateEmail(email)) {
-            return res.status(400).json({ message: "Неверный формат email" });
-        }
-        
-        if (!validatePassword(password)) {
-            return res.status(400).json({ message: "Пароль должен содержать минимум 6 символов" });
-        }
-        
-        if (name.trim().length < 2) {
-            return res.status(400).json({ message: "Имя должно содержать минимум 2 символа" });
-        }
-        
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
-        if (existingUser) {
-            return res.status(400).json({ message: "Пользователь с таким email уже существует" });
-        }
-        
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-        const newUser = new User({
-            name: name.trim(),
-            email: email.toLowerCase(),
-            password: hashedPassword,
-            registeredAt: new Date(),
-        });
-        const savedUser = await newUser.save();
-        res.status(201).json({ message: "Пользователь успешно зарегистрирован", userId: savedUser._id });
-    } catch (error) {
-        console.error("Ошибка при регистрации пользователя:", error);
-        res.status(500).json({ message: "Ошибка сервера" });
+  try {
+    const { name, email, password, role } = req.body;
+
+    if (!name || !email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Пожалуйста заполните все поля" });
     }
+
+    if (!validateEmail(email)) {
+      return res.status(400).json({ message: "Неверный формат email" });
+    }
+
+    if (!validatePassword(password)) {
+      return res
+        .status(400)
+        .json({ message: "Пароль должен содержать минимум 6 символов" });
+    }
+
+    if (name.trim().length < 2) {
+      return res
+        .status(400)
+        .json({ message: "Имя должно содержать минимум 2 символа" });
+    }
+
+    if (role && role !== "doctor") {
+      return res
+        .status(400)
+        .json({ message: "Регистрация доступна только врачам клиники" });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ message: "Пользователь с таким email уже существует" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    const newUser = new User({
+      name: name.trim(),
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      role: "doctor",
+    });
+    const savedUser = await newUser.save();
+    res.status(201).json({
+      message: "Врач успешно зарегистрирован",
+      userId: savedUser._id,
+    });
+  } catch (error) {
+    console.error("Ошибка при регистрации пользователя:", error);
+    res.status(500).json({ message: "Ошибка сервера" });
+  }
 });
 
-app.post ("/api/login", async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        if (!email || !password) {
-            return res.status(400).json({ message: "Пожалуйста заполните все поля" });
-        }
-        
-        const normalizedEmail = email.toLowerCase();
-        
-        const user = await User.findOne({ email: normalizedEmail });
-        if (!user) {
-            return res.status(400).json({ message: "Неверный email или пароль" });
-        }
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: "Неверный email или пароль" });
-        }
-        const payload = {
-            user: {
-                id: user.id
-            }
-        };
-        jwt.sign(
-            payload,
-            process.env.JWT_SECRET,
-            { expiresIn: '30d' },
-            (err, token) => {
-                if (err) throw err;
-                res.status(200).json({
-                    token: token,
-                    name: user.name,
-                    email: user.email
-                });
-            }
-        );
-    } catch (error) {
-        console.error("Ошибка при входе пользователя:", error);
-        res.status(500).json({ message: "Ошибка сервера" });
+app.post("/api/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Пожалуйста заполните все поля" });
     }
+
+    const normalizedEmail = email.toLowerCase();
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Неверный email или пароль" });
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res
+        .status(400)
+        .json({ message: "Неверный email или пароль" });
+    }
+    const payload = {
+      user: {
+        id: user.id,
+        role: user.role || "patient",
+      },
+    };
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" },
+      (err, token) => {
+        if (err) throw err;
+        res.status(200).json({
+          token: token,
+          name: user.name,
+          email: user.email,
+          role: user.role || "patient",
+        });
+      }
+    );
+  } catch (error) {
+    console.error("Ошибка при входе пользователя:", error);
+    res.status(500).json({ message: "Ошибка сервера" });
+  }
+});
+
+app.post("/api/patients", auth, async (req, res) => {
+  try {
+    if (!req.user?.role || req.user.role !== "doctor") {
+      return res
+        .status(403)
+        .json({ message: "Только врач может добавлять пациентов" });
+    }
+
+    const { name, email, temporaryPassword } = req.body;
+
+    if (!name || !email) {
+      return res
+        .status(400)
+        .json({ message: "Имя и email пациента обязательны" });
+    }
+
+    if (name.trim().length < 2) {
+      return res
+        .status(400)
+        .json({ message: "Имя должно содержать минимум 2 символа" });
+    }
+
+    if (!validateEmail(email)) {
+      return res.status(400).json({ message: "Неверный формат email" });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ message: "Пациент с таким email уже существует" });
+    }
+
+    let plainPassword = temporaryPassword;
+    if (plainPassword) {
+      if (!validatePassword(plainPassword)) {
+        return res
+          .status(400)
+          .json({ message: "Пароль должен содержать минимум 6 символов" });
+      }
+    } else {
+      plainPassword = crypto.randomBytes(4).toString("hex");
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(plainPassword, salt);
+
+    const patient = new User({
+      name: name.trim(),
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      role: "patient",
+      assignedDoctor: req.user.id,
+    });
+
+    const savedPatient = await patient.save();
+
+    res.status(201).json({
+      message:
+        "Пациент добавлен. Передайте временный пароль клиенту для первого входа.",
+      patientId: savedPatient._id,
+      temporaryPassword: plainPassword,
+    });
+  } catch (error) {
+    console.error("Ошибка при добавлении пациента:", error);
+    res.status(500).json({ message: "Ошибка сервера" });
+  }
 });
 
 app.post("/api/forgot-password", async (req, res) => {

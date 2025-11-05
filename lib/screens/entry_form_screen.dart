@@ -25,7 +25,6 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
   Map<String, bool> _medicationsTaken = {};
 
   List<String> _symptoms = [];
-  double _headacheLevel = 0;
   final List<String> _lifestyleTags = [
     'стресс',
     'плохой сон',
@@ -141,7 +140,6 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
         'medicationsTaken': medicationsTaken,
         'symptoms': _symptoms,
         'symptomTags': _symptoms,
-        'headacheLevel': _headacheLevel.toInt(),
         'lifestyleTags': _selectedLifestyleTags.toList(),
         'notes': _notesController.text,
       };
@@ -227,11 +225,6 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
             _buildMedicationsList(),
             const SizedBox(height: 24),
           ],
-
-          _buildSectionTitle('Уровень головной боли'),
-          const SizedBox(height: 12),
-          _buildHeadacheLevelSlider(),
-          const SizedBox(height: 24),
 
           _buildSectionTitle('Симптомы'),
           const SizedBox(height: 12),
@@ -341,7 +334,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
         return DropdownMenuItem<String>(
           value: course.id,
           child: Text(
-            '${course.name} (${course.mainSymptom})',
+            '${course.name}',
             style: GoogleFonts.lato(),
           ),
         );
@@ -395,66 +388,6 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
           contentPadding: EdgeInsets.zero,
         );
       }).toList(),
-    );
-  }
-
-  Widget _buildHeadacheLevelSlider() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Уровень: ${_headacheLevel.toInt()}/10',
-              style: GoogleFonts.lato(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF007BFF),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _headacheLevel < 4
-                    ? Colors.green.shade100
-                    : _headacheLevel < 7
-                    ? Colors.orange.shade100
-                    : Colors.red.shade100,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _headacheLevel < 4
-                    ? 'Легкая'
-                    : _headacheLevel < 7
-                    ? 'Средняя'
-                    : 'Сильная',
-                style: GoogleFonts.lato(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: _headacheLevel < 4
-                      ? Colors.green.shade800
-                      : _headacheLevel < 7
-                      ? Colors.orange.shade800
-                      : Colors.red.shade800,
-                ),
-              ),
-            ),
-          ],
-        ),
-        Slider(
-          value: _headacheLevel,
-          min: 0,
-          max: 10,
-          divisions: 10,
-          label: _headacheLevel.toInt().toString(),
-          onChanged: (value) {
-            setState(() {
-              _headacheLevel = value;
-            });
-          },
-          activeColor: const Color(0xFF007BFF),
-        ),
-      ],
     );
   }
 

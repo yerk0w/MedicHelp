@@ -21,6 +21,9 @@ class ApiService {
   // Удалить токен
   static Future<void> deleteToken() async {
     await _storage.delete(key: 'jwt_token');
+    await _storage.delete(key: 'user_name');
+    await _storage.delete(key: 'user_email');
+    await _storage.delete(key: 'user_role');
   }
 
   // GET запрос
@@ -188,6 +191,14 @@ class ApiService {
 
   static Future<Map<String, dynamic>> getInsightToday() async {
     final response = await get(ApiConfig.insightToday);
+    return handleResponse(response);
+  }
+
+  // API методы для управления пациентами (для врачей)
+  static Future<Map<String, dynamic>> createPatient(
+    Map<String, dynamic> patientData,
+  ) async {
+    final response = await post(ApiConfig.patients, patientData);
     return handleResponse(response);
   }
 

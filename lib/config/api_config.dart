@@ -33,6 +33,7 @@ class ApiConfig {
   static String get analytics => '$baseUrl/api/analytics';
   static String get courses => '$baseUrl/api/courses';
   static String get insightToday => '$baseUrl/api/insight/today';
+  static String get patients => '$baseUrl/api/patients';
 
   // Динамические endpoints
   static String courseById(String courseId) => '$baseUrl/api/courses/$courseId';

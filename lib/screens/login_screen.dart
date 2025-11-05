@@ -52,6 +52,10 @@ class _LoginScreenState extends State<LoginScreen> {
         await _storage.write(key: 'jwt_token', value: responseData['token']);
         await _storage.write(key: 'user_name', value: responseData['name']);
         await _storage.write(key: 'user_email', value: email);
+        await _storage.write(
+          key: 'user_role',
+          value: responseData['role'] ?? 'patient',
+        );
 
         if (mounted) {
           Navigator.pushReplacement(
@@ -455,7 +459,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextField(
                       controller: _emailController,
                       decoration: _buildInputDecoration(
-                        'Email или телефон',
+                        'Email',
                         'erkhan@gmail.com',
                       ),
                       keyboardType: TextInputType.emailAddress,
@@ -509,10 +513,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 20.0),
                     const Text(
-                      'или',
+                      'Пациенты получают доступ от врача и могут использовать «Забыли пароль» для первого входа.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.grey),
                     ),
+                    const SizedBox(height: 12.0),
                     TextButton(
                       onPressed: () {
                         Navigator.pushReplacementNamed(context, '/register');
@@ -521,9 +526,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         text: const TextSpan(
                           style: TextStyle(color: Colors.black54, fontSize: 16),
                           children: [
-                            TextSpan(text: 'Нет аккаунта? '),
+                            TextSpan(text: 'Нужна учетная запись врача? '),
                             TextSpan(
-                              text: 'Зарегистрироваться',
+                              text: 'Регистрация врача',
                               style: TextStyle(
                                 color: Color(0xFF007BFF),
                                 fontWeight: FontWeight.bold,

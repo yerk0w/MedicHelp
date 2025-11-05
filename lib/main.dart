@@ -10,7 +10,6 @@ import 'package:medichelp/services/api_service.dart';
 import 'package:medichelp/screens/courses_screen.dart';
 
 void main() async {
-
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ru', null);
 
@@ -23,7 +22,7 @@ class HealthCompassApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Health Compass',
+      title: 'MedicHelp',
       debugShowCheckedModeBanner: false,
 
       // Локализация
@@ -190,7 +189,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Health Compass',
+                'MedicHelp',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 32,

@@ -66,7 +66,7 @@ router.get("/today", auth, async (req, res) => {
       Не используй форматирование (никаких '•' или '*'). Только текст.
     `;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Используем flash-модель для скорости
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" }); // Используем flash-модель для скорости
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const aiInsight = response.text();

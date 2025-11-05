@@ -5,6 +5,13 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('./User/User')
+const { sendResetEmail } = require("./utils/emailService");
+const VerificationCode = require("./User/VerificationCode");
+const {
+  generateVerificationCode,
+  sendPasswordResetEmail,
+} = require("./utils/emailService");
+
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -122,75 +129,89 @@ app.post ("/api/login", async (req, res) => {
 });
 
 app.post("/api/forgot-password", async (req, res) => {
-    try {
-        const { email } = req.body;
-        
-        if (!email) {
-            return res.status(400).json({ message: "Пожалуйста, введите email" });
-        }
-        
-        const user = await User.findOne({ email: email.toLowerCase() });
-        if (!user) {
-            // Не раскрываем информацию о существовании пользователя
-            return res.status(200).json({ 
-                message: "Если аккаунт с таким email существует, инструкции по восстановлению пароля отправлены" 
-            });
-        }
-        
-        // В реальном приложении здесь был бы код отправки email
-        // Для демо просто возвращаем успех
-        const resetToken = jwt.sign(
-            { userId: user._id },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
-        
-        console.log(`Reset token for ${email}: ${resetToken}`);
-        
-        res.status(200).json({ 
-            message: "Если аккаунт с таким email существует, инструкции по восстановлению пароля отправлены",
-            // Только для демо - в продакшене токен отправляется на email
-            demoToken: resetToken 
-        });
-    } catch (error) {
-        console.error("Ошибка при восстановлении пароля:", error);
-        res.status(500).json({ message: "Ошибка сервера" });
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email обязателен" });
     }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.json({
+        message: "Если email зарегистрирован, код отправлен",
+      });
+    }
+
+    const code = generateVerificationCode();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await VerificationCode.deleteMany({
+      email: email.toLowerCase(),
+      type: "password_reset",
+    });
+
+    const verificationCode = new VerificationCode({
+      email: email.toLowerCase(),
+      code,
+      type: "password_reset",
+      expiresAt,
+    });
+
+    await verificationCode.save();
+    await sendPasswordResetEmail(email, code);
+
+    res.json({
+      message: "Если email зарегистрирован, код отправлен",
+    });
+  } catch (error) {
+    console.error("Ошибка:", error);
+    res.status(500).json({ message: "Ошибка сервера" });
+  }
 });
 
-// Сброс пароля
-app.post("/api/reset-password", async (req, res) => {
-    try {
-        const { token, newPassword } = req.body;
-        
-        if (!token || !newPassword) {
-            return res.status(400).json({ message: "Недостаточно данных" });
-        }
-        
-        if (!validatePassword(newPassword)) {
-            return res.status(400).json({ message: "Пароль должен содержать минимум 6 символов" });
-        }
-        
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            const user = await User.findById(decoded.userId);
-            
-            if (!user) {
-                return res.status(404).json({ message: "Пользователь не найден" });
-            }
-            
-            const salt = await bcrypt.genSalt(10);
-            user.password = await bcrypt.hash(newPassword, salt);
-            await user.save();
-            
-            res.status(200).json({ message: "Пароль успешно изменен" });
-        } catch (err) {
-            return res.status(401).json({ message: "Неверный или истекший токен" });
-        }
-    } catch (error) {
-        console.error("Ошибка при сбросе пароля:", error);
-        res.status(500).json({ message: "Ошибка сервера" });
+app.post("/api/verify-reset-code", async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ message: "Все поля обязательны" });
     }
+
+    if (!validatePassword(newPassword)) {
+      return res.status(400).json({ message: "Пароль минимум 6 символов" });
+    }
+
+    const verificationCode = await VerificationCode.findOne({
+      email: email.toLowerCase(),
+      code,
+      type: "password_reset",
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!verificationCode) {
+      return res.status(400).json({ message: "Неверный или истекший код" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    await VerificationCode.deleteMany({
+      email: email.toLowerCase(),
+      type: "password_reset",
+    });
+
+    res.json({ message: "Пароль успешно изменен" });
+  } catch (error) {
+    console.error("Ошибка:", error);
+    res.status(500).json({ message: "Ошибка сервера" });
+  }
 });
 
 app.use('/api/entries', require('./routes/entries'));

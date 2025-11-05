@@ -4,7 +4,6 @@ const auth = require("../middleware/auth");
 const TreatmentCourse = require("../User/TreatmentCourse");
 const Medication = require("../User/Medication");
 
-// POST /api/courses - Создать новый курс лечения
 router.post("/", auth, async (req, res) => {
   try {
     const { name, mainSymptom, startDate, endDate } = req.body;
@@ -31,7 +30,6 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-// GET /api/courses - Получить все курсы пользователя
 router.get("/", auth, async (req, res) => {
   try {
     const courses = await TreatmentCourse.find({ userId: req.user.id }).sort({
@@ -44,7 +42,6 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-// GET /api/courses/:courseId - Получить один курс со всеми лекарствами
 router.get("/:courseId", auth, async (req, res) => {
   try {
     const course = await TreatmentCourse.findById(req.params.courseId);
@@ -71,7 +68,6 @@ router.get("/:courseId", auth, async (req, res) => {
   }
 });
 
-// POST /api/courses/:courseId/medications - Добавить лекарство в курс
 router.post("/:courseId/medications", auth, async (req, res) => {
   try {
     const { name, dosage, schedule } = req.body;
@@ -134,7 +130,6 @@ router.put("/:courseId", auth, async (req, res) => {
   }
 });
 
-// DELETE /api/courses/:courseId - Удалить курс лечения
 router.delete("/:courseId", auth, async (req, res) => {
   try {
     const course = await TreatmentCourse.findById(req.params.courseId);
@@ -147,7 +142,6 @@ router.delete("/:courseId", auth, async (req, res) => {
       return res.status(403).json({ message: "Доступ запрещен" });
     }
 
-    // Удаляем все связанные лекарства
     await Medication.deleteMany({ courseId: req.params.courseId });
 
     await TreatmentCourse.findByIdAndDelete(req.params.courseId);
@@ -159,7 +153,6 @@ router.delete("/:courseId", auth, async (req, res) => {
   }
 });
 
-// PUT /api/courses/:courseId/medications/:medId - Обновить лекарство
 router.put("/:courseId/medications/:medId", auth, async (req, res) => {
   try {
     const { name, dosage, schedule } = req.body;
@@ -189,7 +182,6 @@ router.put("/:courseId/medications/:medId", auth, async (req, res) => {
   }
 });
 
-// DELETE /api/courses/:courseId/medications/:medId - Удалить лекарство
 router.delete("/:courseId/medications/:medId", auth, async (req, res) => {
   try {
     const course = await TreatmentCourse.findById(req.params.courseId);

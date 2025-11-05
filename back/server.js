@@ -138,19 +138,23 @@ app.post("/api/forgot-password", async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
+      // Важно: не говорим пользователю, что email не найден
       return res.json({
         message: "Если email зарегистрирован, код отправлен",
       });
     }
 
-    const code = generateVerificationCode();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    // Используем функции из твоего emailService.js
+    const code = generateVerificationCode(); 
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // Код живет 5 минут
 
+    // Удаляем старые коды для этого email
     await VerificationCode.deleteMany({
       email: email.toLowerCase(),
       type: "password_reset",
     });
 
+    // Сохраняем новый код
     const verificationCode = new VerificationCode({
       email: email.toLowerCase(),
       code,
@@ -159,7 +163,7 @@ app.post("/api/forgot-password", async (req, res) => {
     });
 
     await verificationCode.save();
-    await sendPasswordResetEmail(email, code);
+    await sendPasswordResetEmail(email, code); // Отправляем email
 
     res.json({
       message: "Если email зарегистрирован, код отправлен",
@@ -170,7 +174,8 @@ app.post("/api/forgot-password", async (req, res) => {
   }
 });
 
-app.post("/api/verify-reset-code", async (req, res) => {
+// ШАГ 2: Проверка кода и смена пароля
+app.post("/api/reset-password", async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
 
@@ -178,7 +183,8 @@ app.post("/api/verify-reset-code", async (req, res) => {
       return res.status(400).json({ message: "Все поля обязательны" });
     }
 
-    if (!validatePassword(newPassword)) {
+    // Используем твою функцию валидации пароля
+    if (!validatePassword(newPassword)) { 
       return res.status(400).json({ message: "Пароль минимум 6 символов" });
     }
 
@@ -186,7 +192,7 @@ app.post("/api/verify-reset-code", async (req, res) => {
       email: email.toLowerCase(),
       code,
       type: "password_reset",
-      expiresAt: { $gt: new Date() },
+      expiresAt: { $gt: new Date() }, // Проверяем, что код не истек
     });
 
     if (!verificationCode) {
@@ -198,10 +204,12 @@ app.post("/api/verify-reset-code", async (req, res) => {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
 
+    // Хэшируем и сохраняем новый пароль
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
+    // Удаляем использованный код
     await VerificationCode.deleteMany({
       email: email.toLowerCase(),
       type: "password_reset",
@@ -213,6 +221,7 @@ app.post("/api/verify-reset-code", async (req, res) => {
     res.status(500).json({ message: "Ошибка сервера" });
   }
 });
+
 
 app.use('/api/entries', require('./routes/entries'));
 app.use('/api/profile', require('./routes/profile'));

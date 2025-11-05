@@ -86,20 +86,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _showForgotPasswordDialog() async {
     final TextEditingController resetEmailController = TextEditingController();
+    final TextEditingController resetCodeController = TextEditingController();
+    final TextEditingController newPasswordController = TextEditingController();
     bool isLoading = false;
+    int _currentStep = 0; // 0 - для email, 1 - для кода и нового пароля
+    String userEmail = ''; // Сохраним email для Шага 2
 
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
+        // ИСПОЛЬЗУЕМ StateSetter ДЛЯ ОБНОВЛЕНИЯ ДИАЛОГА
         return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(
-                'Восстановление пароля',
-                style: GoogleFonts.lato(fontWeight: FontWeight.bold),
-              ),
-              content: Column(
+          builder: (context, StateSetter setDialogState) {
+            // --- Виджет для Шага 0 (Ввод Email) ---
+            Widget _buildStep0() {
+              return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
@@ -121,6 +123,199 @@ class _LoginScreenState extends State<LoginScreen> {
                     enabled: !isLoading,
                   ),
                 ],
+              );
+            }
+
+            // --- Виджет для Шага 1 (Ввод Кода и Нового Пароля) ---
+            Widget _buildStep1() {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Мы отправили код на $userEmail. Введите его и ваш новый пароль.',
+                    style: GoogleFonts.lato(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: resetCodeController,
+                    decoration: InputDecoration(
+                      labelText: 'Код из письма',
+                      hintText: '123456',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: const Icon(Icons.pin_outlined),
+                    ),
+                    keyboardType: TextInputType.number,
+                    enabled: !isLoading,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: newPasswordController,
+                    decoration: InputDecoration(
+                      labelText: 'Новый пароль',
+                      hintText: '••••••••',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    ),
+                    obscureText: true,
+                    enabled: !isLoading,
+                  ),
+                ],
+              );
+            }
+
+            // --- Логика нажатия на главную кнопку ---
+            void _handleSubmit() async {
+              // Валидация
+              if (_currentStep == 0) {
+                userEmail = resetEmailController.text.trim();
+                if (userEmail.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Пожалуйста, введите email'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+              } else {
+                final code = resetCodeController.text.trim();
+                final newPassword = newPasswordController.text.trim();
+                if (code.isEmpty || newPassword.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Пожалуйста, введите код и новый пароль'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+              }
+
+              // ИСПОЛЬЗУЕМ 'setDialogState'
+              setDialogState(() {
+                isLoading = true;
+              });
+
+              try {
+                if (_currentStep == 0) {
+                  // --- ШАГ 0: Отправка Email ---
+                  final response = await http.post(
+                    Uri.parse(ApiConfig.forgotPassword),
+                    headers: ApiConfig.defaultHeaders,
+                    body: json.encode({'email': userEmail}),
+                  );
+
+                  if (response.statusCode == 200) {
+                    // УСПЕХ! ПЕРЕХОДИМ НА ШАГ 1
+                    setDialogState(() {
+                      _currentStep = 1;
+                      isLoading = false;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Инструкции отправлены на $userEmail',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else {
+                    // Ошибка на Шаге 0
+                    final data = json.decode(response.body);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          data['message'] ?? 'Ошибка',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    // ИСПРАВЛЕНО: Выключаем загрузку при ошибке
+                    setDialogState(() {
+                      isLoading = false;
+                    });
+                  }
+                } else {
+                  // --- ШАГ 1: Отправка Кода и Нового Пароля ---
+                  final code = resetCodeController.text.trim();
+                  final newPassword = newPasswordController.text.trim();
+
+                  final response = await http.post(
+                    Uri.parse(ApiConfig.resetPassword),
+                    headers: ApiConfig.defaultHeaders,
+                    body: json.encode({
+                      'email': userEmail,
+                      'code': code,
+                      'newPassword': newPassword,
+                    }),
+                  );
+
+                  if (response.statusCode == 200) {
+                    // ВСЕ ГОТОВО!
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop();
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Пароль успешно сброшен! Теперь вы можете войти.',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 4),
+                      ),
+                    );
+                    // Не нужен setDialogState, так как диалог закрывается
+                  } else {
+                    // Ошибка на Шаге 1
+                    final data = json.decode(response.body);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          data['message'] ?? 'Неверный код или другая ошибка',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    // ИСПРАВЛЕНО: Выключаем загрузку при ошибке
+                    setDialogState(() {
+                      isLoading = false;
+                    });
+                  }
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Ошибка сети: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                // ИСПРАВЛЕНО: Выключаем загрузку при ошибке
+                setDialogState(() {
+                  isLoading = false;
+                });
+              }
+              // ИСПРАВЛЕНО: Блок 'finally' УДАЛЕН,
+              // так как 'isLoading = false' теперь обрабатывается
+              // в каждом блоке 'if/else' и 'catch'
+            }
+
+            // --- Сборка самого AlertDialog ---
+            return AlertDialog(
+              title: Text(
+                'Восстановление пароля',
+                style: GoogleFonts.lato(fontWeight: FontWeight.bold),
+              ),
+              content: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _currentStep == 0 ? _buildStep0() : _buildStep1(),
               ),
               actions: <Widget>[
                 TextButton(
@@ -135,85 +330,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: isLoading
-                      ? null
-                      : () async {
-                          final email = resetEmailController.text.trim();
-
-                          if (email.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Пожалуйста, введите email'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
-
-                          setState(() {
-                            isLoading = true;
-                          });
-
-                          try {
-                            // ИСПРАВЛЕНО: используем ApiConfig
-                            final response = await http.post(
-                              Uri.parse(ApiConfig.forgotPassword),
-                              headers: ApiConfig.defaultHeaders,
-                              body: json.encode({'email': email}),
-                            );
-
-                            if (response.statusCode == 200) {
-                              if (dialogContext.mounted) {
-                                Navigator.of(dialogContext).pop();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Инструкции отправлены на $email',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    backgroundColor: Colors.green,
-                                    duration: const Duration(seconds: 3),
-                                  ),
-                                );
-                              }
-                            } else {
-                              setState(() {
-                                isLoading = false;
-                              });
-                              final data = json.decode(response.body);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    data['message'] ?? 'Ошибка',
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            setState(() {
-                              isLoading = false;
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Ошибка сети: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
+                  onPressed: isLoading ? null : _handleSubmit,
                   child: isLoading
                       ? const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text(
-                          'Отправить',
-                          style: TextStyle(color: Color(0xFF007BFF)),
+                      : Text(
+                          _currentStep == 0 ? 'Отправить' : 'Сбросить пароль',
+                          style: const TextStyle(color: Color(0xFF007BFF)),
                         ),
                 ),
               ],
@@ -224,6 +350,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     resetEmailController.dispose();
+    resetCodeController.dispose();
+    newPasswordController.dispose();
   }
 
   InputDecoration _buildInputDecoration(

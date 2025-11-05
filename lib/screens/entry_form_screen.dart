@@ -5,21 +5,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 
-class Medication {
-  String name;
-  bool taken;
-  TimeOfDay time;
-
-  Medication({required this.name, this.taken = false, required this.time});
-
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'time':
-        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
-    'taken': taken,
-  };
-}
-
 class EntryFormScreen extends StatefulWidget {
   const EntryFormScreen({super.key});
 
@@ -33,16 +18,13 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
   final _symptomController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
-  double _headacheLevel = 5.0;
 
-  final List<Medication> _medications = [
-    Medication(
-      name: 'Ибупрофен 400мг',
-      time: const TimeOfDay(hour: 9, minute: 0),
-    ),
-    Medication(name: 'Витамин D', time: const TimeOfDay(hour: 12, minute: 0)),
-  ];
-  final List<String> _symptomTags = ['тошнота', 'усталость', 'головокружение'];
+  List<Map<String, dynamic>> _courses = [];
+  String? _selectedCourseId;
+  List<Map<String, dynamic>> _courseMedications = [];
+  Map<String, bool> _medicationsTaken = {};
+
+  List<String> _symptoms = [];
   final List<String> _lifestyleTags = [
     'стресс',
     'плохой сон',
@@ -51,27 +33,149 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
     'алкоголь',
     'переедание',
   ];
-
-  final Set<String> _selectedSymptomTags = {};
   final Set<String> _selectedLifestyleTags = {};
 
-  Future<void> _saveEntry() async {
-    final String? token = await _storage.read(key: 'jwt_token');
+  bool _isLoadingCourses = true;
+  bool _isLoadingMedications = false;
 
-    if (token == null) {
-      _showErrorDialog('Ошибка авторизации. Попробуйте войти заново.');
+  @override
+  void initState() {
+    super.initState();
+    _loadCourses();
+  }
+
+  Future<void> _loadCourses() async {
+    final token = await _storage.read(key: 'jwt_token');
+    if (token == null) return;
+
+    setState(() {
+      _isLoadingCourses = true;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5001/api/courses'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _courses = data
+              .map(
+                (c) => {
+                  'id': c['_id'],
+                  'name': c['name'],
+                  'mainSymptom': c['mainSymptom'],
+                },
+              )
+              .toList();
+          _isLoadingCourses = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingCourses = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingCourses = false;
+      });
+      _showErrorDialog('Ошибка загрузки курсов: $e');
+    }
+  }
+
+  Future<void> _loadCourseMedications(String courseId) async {
+    final token = await _storage.read(key: 'jwt_token');
+    if (token == null) return;
+
+    setState(() {
+      _isLoadingMedications = true;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5001/api/courses/$courseId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> medications = data['medications'];
+
+        setState(() {
+          _courseMedications = medications
+              .map(
+                (m) => {
+                  'id': m['_id'],
+                  'name': m['name'],
+                  'dosage': m['dosage'],
+                  'schedule': m['schedule'],
+                },
+              )
+              .toList();
+
+          _medicationsTaken.clear();
+          for (var med in _courseMedications) {
+            _medicationsTaken[med['id']] = false;
+          }
+
+          _isLoadingMedications = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingMedications = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingMedications = false;
+      });
+      _showErrorDialog('Ошибка загрузки лекарств: $e');
+    }
+  }
+
+  void _addSymptom() {
+    if (_symptomController.text.trim().isEmpty) return;
+
+    setState(() {
+      _symptoms.add(_symptomController.text.trim());
+      _symptomController.clear();
+    });
+  }
+
+  void _removeSymptom(String symptom) {
+    setState(() {
+      _symptoms.remove(symptom);
+    });
+  }
+
+  Future<void> _saveEntry() async {
+    if (_selectedCourseId == null) {
+      _showErrorDialog('Выберите курс лечения');
       return;
     }
 
-    final List<Map<String, dynamic>> medsJson = _medications
-        .map((med) => med.toJson())
+    final token = await _storage.read(key: 'jwt_token');
+    if (token == null) {
+      _showErrorDialog('Ошибка авторизации');
+      return;
+    }
+
+    final medicationsTaken = _medicationsTaken.entries
+        .map(
+          (entry) => {
+            'medId': entry.key,
+            'status': entry.value ? 'taken' : 'skipped',
+          },
+        )
         .toList();
 
     final body = json.encode({
       'entryDate': _selectedDate.toIso8601String(),
-      'medications': medsJson,
-      'headacheLevel': _headacheLevel.toInt(),
-      'symptomTags': _selectedSymptomTags.toList(),
+      'courseId': _selectedCourseId,
+      'medicationsTaken': medicationsTaken,
+      'symptoms': _symptoms,
       'lifestyleTags': _selectedLifestyleTags.toList(),
       'notes': _notesController.text,
     });
@@ -97,85 +201,6 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
     } catch (e) {
       _showErrorDialog('Ошибка подключения: $e');
     }
-  }
-
-  Future<void> _showAddMedicationDialog() async {
-    final medNameController = TextEditingController();
-    TimeOfDay? selectedTime = TimeOfDay.now();
-
-    final result = await showDialog<Medication>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, dialogSetState) {
-            return AlertDialog(
-              title: Text('Добавить лекарство', style: GoogleFonts.lato()),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: medNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Название лекарства',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ListTile(
-                    title: Text(
-                      'Время приема: ${selectedTime?.format(context) ?? "Не выбрано"}',
-                    ),
-                    trailing: const Icon(Icons.access_time),
-                    onTap: () async {
-                      final pickedTime = await showTimePicker(
-                        context: context,
-                        initialTime: selectedTime ?? TimeOfDay.now(),
-                      );
-                      if (pickedTime != null) {
-                        dialogSetState(() {
-                          selectedTime = pickedTime;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Отмена'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    if (medNameController.text.isNotEmpty &&
-                        selectedTime != null) {
-                      final newMed = Medication(
-                        name: medNameController.text,
-                        time: selectedTime!,
-                        taken: false,
-                      );
-                      Navigator.of(context).pop(newMed);
-                    }
-                  },
-                  child: const Text('Сохранить'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (result != null) {
-      setState(() {
-        _medications.add(result);
-      });
-    }
-  }
-
-  void _removeMedication(Medication med) {
-    setState(() {
-      _medications.remove(med);
-    });
   }
 
   void _showErrorDialog(String message) {
@@ -228,35 +253,28 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          _buildSectionTitle('Прием лекарств'),
-          _buildMedicationList(),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Добавить лекарство'),
-            onPressed: _showAddMedicationDialog,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF007BFF),
-              side: BorderSide(color: Colors.grey.shade300),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
+          _buildSectionTitle('Курс лечения'),
+          _buildCourseDropdown(),
           const SizedBox(height: 24),
+
+          if (_selectedCourseId != null) ...[
+            _buildSectionTitle('Прием лекарств'),
+            _buildMedicationsList(),
+            const SizedBox(height: 24),
+          ],
+
           _buildSectionTitle('Симптомы'),
-          _buildHeadacheSlider(),
-          const SizedBox(height: 24),
-          _buildSectionTitle('Добавить симптомы'),
           const SizedBox(height: 12),
-          _buildChoiceChipGroup(_symptomTags, _selectedSymptomTags),
-          const SizedBox(height: 16),
-          _buildSymptomTextField(),
+          _buildSymptomInput(),
+          const SizedBox(height: 12),
+          _buildSymptomsChips(),
           const SizedBox(height: 24),
+
           _buildSectionTitle('Образ жизни'),
           const SizedBox(height: 12),
           _buildChoiceChipGroup(_lifestyleTags, _selectedLifestyleTags),
           const SizedBox(height: 24),
+
           _buildSectionTitle('Дополнительные заметки'),
           const SizedBox(height: 12),
           _buildNotesTextField(),
@@ -300,120 +318,164 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
     );
   }
 
-  Widget _buildMedicationList() {
-    if (_medications.isEmpty) {
-      return Center(
+  Widget _buildCourseDropdown() {
+    if (_isLoadingCourses) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_courses.isEmpty) {
+      return Card(
+        color: Colors.white,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          padding: const EdgeInsets.all(16.0),
           child: Text(
-            'Нажмите "+", чтобы добавить лекарства',
+            'Нет доступных курсов. Создайте курс в настройках.',
             style: GoogleFonts.lato(color: Colors.grey),
           ),
         ),
       );
     }
+
+    return DropdownButtonFormField<String>(
+      value: _selectedCourseId,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+      ),
+      hint: Text('Выберите курс', style: GoogleFonts.lato()),
+      items: _courses.map((course) {
+        return DropdownMenuItem<String>(
+          value: course['id'],
+          child: Text(
+            '${course['name']} (${course['mainSymptom']})',
+            style: GoogleFonts.lato(),
+          ),
+        );
+      }).toList(),
+      onChanged: (String? newValue) {
+        if (newValue != null) {
+          setState(() {
+            _selectedCourseId = newValue;
+          });
+          _loadCourseMedications(newValue);
+        }
+      },
+    );
+  }
+
+  Widget _buildMedicationsList() {
+    if (_isLoadingMedications) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_courseMedications.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16.0),
+        child: Text(
+          'В этом курсе нет лекарств',
+          style: GoogleFonts.lato(color: Colors.grey),
+        ),
+      );
+    }
+
     return Column(
-      children: _medications.map((med) {
-        return ListTile(
+      children: _courseMedications.map((med) {
+        final medId = med['id'];
+        final schedule = (med['schedule'] as List).join(', ');
+
+        return CheckboxListTile(
+          title: Text(
+            '${med['name']} (${med['dosage']})',
+            style: GoogleFonts.lato(fontSize: 16),
+          ),
+          subtitle: Text(
+            'Расписание: $schedule',
+            style: GoogleFonts.lato(fontSize: 14, color: Colors.grey),
+          ),
+          value: _medicationsTaken[medId] ?? false,
+          onChanged: (bool? value) {
+            setState(() {
+              _medicationsTaken[medId] = value ?? false;
+            });
+          },
+          activeColor: const Color(0xFF007BFF),
           contentPadding: EdgeInsets.zero,
-          leading: Switch(
-            value: med.taken,
-            onChanged: (bool value) {
-              setState(() {
-                med.taken = value;
-              });
-            },
-            activeColor: const Color(0xFF007BFF),
-          ),
-          title: Text(med.name, style: GoogleFonts.lato(fontSize: 16)),
-          subtitle: Text(med.time.format(context), style: GoogleFonts.lato()),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-            onPressed: () => _removeMedication(med),
-          ),
         );
       }).toList(),
     );
   }
 
-  Widget _buildHeadacheSlider() {
-    return Card(
-      elevation: 1,
-      shadowColor: Colors.grey.shade200,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Уровень головной боли',
-                  style: GoogleFonts.lato(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                Text(
-                  '${_headacheLevel.toInt()}/10',
-                  style: GoogleFonts.lato(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: const Color(0xFF007BFF),
-                  ),
-                ),
-              ],
+  Widget _buildSymptomInput() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _symptomController,
+            decoration: InputDecoration(
+              hintText: 'Введите симптом...',
+              hintStyle: GoogleFonts.lato(color: Colors.grey.shade500),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF007BFF)),
+              ),
             ),
-            Slider(
-              value: _headacheLevel,
-              min: 0,
-              max: 10,
-              divisions: 10,
-              label: _headacheLevel.round().toString(),
-              activeColor: const Color(0xFF007BFF),
-              onChanged: (double value) {
-                setState(() {
-                  _headacheLevel = value;
-                });
-              },
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Нет боли', style: GoogleFonts.lato(color: Colors.grey)),
-                Text(
-                  'Сильная боль',
-                  style: GoogleFonts.lato(color: Colors.grey),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: _addSymptom,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF007BFF),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: Text('Добавить', style: GoogleFonts.lato(color: Colors.white)),
+        ),
+      ],
     );
   }
 
-  Widget _buildSymptomTextField() {
-    return TextField(
-      controller: _symptomController,
-      decoration: InputDecoration(
-        hintText: 'Введите симптом...',
-        hintStyle: GoogleFonts.lato(color: Colors.grey.shade500),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+  Widget _buildSymptomsChips() {
+    if (_symptoms.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Text(
+          'Нет добавленных симптомов',
+          style: GoogleFonts.lato(color: Colors.grey),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF007BFF)),
-        ),
-      ),
+      );
+    }
+
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 8.0,
+      children: _symptoms.map((symptom) {
+        return Chip(
+          label: Text(symptom, style: GoogleFonts.lato()),
+          deleteIcon: const Icon(Icons.close, size: 18),
+          onDeleted: () => _removeSymptom(symptom),
+          backgroundColor: const Color(0xFF007BFF).withOpacity(0.1),
+          deleteIconColor: const Color(0xFF007BFF),
+        );
+      }).toList(),
     );
   }
 
@@ -479,5 +541,12 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
         );
       }).toList(),
     );
+  }
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    _symptomController.dispose();
+    super.dispose();
   }
 }

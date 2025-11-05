@@ -1,41 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:medichelp/screens/entry_form_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-class Medication {
-  final String name;
-  final String time;
-  bool isTaken;
-
-  Medication({required this.name, required this.time, this.isTaken = false});
-
-  factory Medication.fromJson(Map<String, dynamic> json) {
-    return Medication(
-      name: json['name'] ?? 'Без имени',
-      time: json['time'] ?? '00:00',
-      isTaken: json['taken'] ?? false,
-    );
-  }
-}
-
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class HomeScreenContent extends StatefulWidget {
+  const HomeScreenContent({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreenContent> createState() => _HomeScreenContentState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
+class _HomeScreenContentState extends State<HomeScreenContent> {
   String _userName = "...";
   bool _isLoadingPlan = true;
   final _storage = const FlutterSecureStorage();
-
-  List<Medication> _medications = [];
+  List<Map<String, dynamic>> _medications = [];
 
   @override
   void initState() {
@@ -77,9 +58,13 @@ class _HomeScreenState extends State<HomeScreen> {
         final List<dynamic> medsJson = json.decode(response.body);
         if (mounted) {
           setState(() {
-            _medications = medsJson
-                .map((json) => Medication.fromJson(json))
-                .toList();
+            _medications = medsJson.map((json) {
+              return {
+                'name': json['name'] ?? 'Без имени',
+                'time': json['time'] ?? '00:00',
+                'taken': json['taken'] ?? false,
+              };
+            }).toList();
             _isLoadingPlan = false;
           });
         }
@@ -97,46 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _isLoadingPlan = false;
           _medications = [];
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Ошибка загрузки плана: $e")));
       }
-    }
-  }
-
-  void _navigateToAddEntry() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const EntryFormScreen()),
-    ).then((_) {
-      _loadTodayPlan();
-    });
-  }
-
-  void _onItemTapped(int index) {
-    if (index == _selectedIndex) return;
-
-    if (index == 2) {
-      _navigateToAddEntry();
-      return;
-    }
-
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-        Navigator.pushReplacementNamed(context, '/analytics');
-        break;
-      case 3:
-        Navigator.pushReplacementNamed(context, '/report');
-        break;
-      case 4:
-        Navigator.pushReplacementNamed(context, '/profile');
-        break;
     }
   }
 
@@ -152,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildHeader(),
             const SizedBox(height: 20),
             Padding(
-              padding: const EdgeInsetsDirectional.symmetric(horizontal: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -167,33 +113,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToAddEntry,
-        backgroundColor: const Color(0xFF007BFF),
-        child: const Icon(Icons.add, color: Colors.white),
-        shape: const CircleBorder(),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Аналитика',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.link), label: 'Лекарства'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description),
-            label: 'Отчет',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0xFF007BFF),
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        showUnselectedLabels: true,
       ),
     );
   }
@@ -233,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPlanCard() {
     return Card(
       elevation: 2,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -254,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
-                        'План на сегодня пуст. Нажмите "+", чтобы добавить запись.',
+                        'План на сегодня пуст.',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.lato(
                           fontSize: 16,
@@ -274,22 +194,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMedicationTile(Medication medication) {
+  Widget _buildMedicationTile(Map<String, dynamic> medication) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Checkbox(
-        value: medication.isTaken,
+        value: medication['taken'],
         onChanged: (bool? value) {
           setState(() {
-            medication.isTaken = value!;
+            medication['taken'] = value!;
           });
         },
         activeColor: const Color(0xFF007BFF),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
-      title: Text(medication.name, style: GoogleFonts.lato()),
+      title: Text(medication['name'], style: GoogleFonts.lato()),
       trailing: Text(
-        medication.time,
+        medication['time'],
         style: GoogleFonts.lato(color: Colors.grey),
       ),
     );
@@ -298,6 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildChartCard() {
     return Card(
       elevation: 2,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),

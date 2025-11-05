@@ -1,71 +1,68 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const auth = require('../middleware/auth');
-const User = require('../User/User');
+const auth = require("../middleware/auth");
+const User = require("../User/User");
 
-router.get('/', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id).select('-password');
-        if (!user) {
-            return res.status(404).json({ message: 'Пользователь не найден' });
-        }
-        res.json({
-            name: user.name,
-            email: user.email,
-            medicalCard: user.medicalCard
-        });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Ошибка сервера');
+router.get("/", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
     }
+    res.json({
+      name: user.name,
+      email: user.email,
+      medicalCard: user.medicalCard,
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Ошибка сервера");
+  }
 });
 
-router.put('/', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ message: 'Пользователь не найден' });
-        }
-
-        // Создаем безопасный объект медицинской карты
-        const sanitizedCard = {
-            fullName: req.body.fullName || '',
-            birthDate: req.body.birthDate || '',
-            bloodType: req.body.bloodType || '',
-            allergies: req.body.allergies || '',
-            chronicDiseases: req.body.chronicDiseases || '',
-            emergencyContact: req.body.emergencyContact || '',
-            insuranceNumber: req.body.insuranceNumber || '',
-            additionalInfo: req.body.additionalInfo || ''
-        };
-
-        // Ограничения на длину полей
-        const maxLengths = {
-            fullName: 100,
-            birthDate: 20,
-            bloodType: 10,
-            allergies: 500,
-            chronicDiseases: 500,
-            emergencyContact: 50,
-            insuranceNumber: 50,
-            additionalInfo: 1000
-        };
-
-        for (const [key, value] of Object.entries(sanitizedCard)) {
-            if (typeof value === 'string' && value.length > maxLengths[key]) {
-                sanitizedCard[key] = value.substring(0, maxLengths[key]);
-            }
-        }
-
-        user.medicalCard = sanitizedCard;
-        await user.save();
-        
-        res.status(200).json(user.medicalCard);
-
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Ошибка сервера');
+router.put("/", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
     }
+
+    const sanitizedCard = {
+      fullName: req.body.fullName || "",
+      birthDate: req.body.birthDate || "",
+      bloodType: req.body.bloodType || "",
+      allergies: req.body.allergies || "",
+      chronicDiseases: req.body.chronicDiseases || "",
+      emergencyContact: req.body.emergencyContact || "",
+      insuranceNumber: req.body.insuranceNumber || "",
+      additionalInfo: req.body.additionalInfo || "",
+    };
+
+    const maxLengths = {
+      fullName: 100,
+      birthDate: 20,
+      bloodType: 10,
+      allergies: 500,
+      chronicDiseases: 500,
+      emergencyContact: 50,
+      insuranceNumber: 50,
+      additionalInfo: 1000,
+    };
+
+    for (const [key, value] of Object.entries(sanitizedCard)) {
+      if (typeof value === "string" && value.length > maxLengths[key]) {
+        sanitizedCard[key] = value.substring(0, maxLengths[key]);
+      }
+    }
+
+    user.medicalCard = sanitizedCard;
+    await user.save();
+
+    res.status(200).json(user.medicalCard);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Ошибка сервера");
+  }
 });
 
 module.exports = router;

@@ -2,20 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:medichelp/screens/edit_profile_screen.dart';
-import 'package:medichelp/screens/entry_form_screen.dart';
 import 'package:medichelp/screens/login_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+class ProfileScreenContent extends StatefulWidget {
+  const ProfileScreenContent({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreenContent> createState() => _ProfileScreenContentState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
-  int _selectedIndex = 4;
+class _ProfileScreenContentState extends State<ProfileScreenContent> {
   final _storage = const FlutterSecureStorage();
   String _userName = "Загрузка...";
   String _userEmail = "...";
@@ -79,36 +77,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _onItemTapped(int index) {
-    if (index == _selectedIndex) return;
-
-    if (index == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const EntryFormScreen()),
-      );
-      return;
-    }
-
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        Navigator.pushReplacementNamed(context, '/home');
-        break;
-      case 1:
-        Navigator.pushReplacementNamed(context, '/analytics');
-        break;
-      case 3:
-        Navigator.pushReplacementNamed(context, '/report');
-        break;
-      case 4:
-        break;
-    }
-  }
-
   void _navigateToEdit() async {
     final result = await Navigator.push(
       context,
@@ -133,27 +101,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: EdgeInsets.zero,
           children: [_buildHeader(), _buildMedicalCard()],
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Аналитика',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.link), label: 'Лекарства'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description),
-            label: 'Отчет',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0xFF007BFF),
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        showUnselectedLabels: true,
       ),
     );
   }

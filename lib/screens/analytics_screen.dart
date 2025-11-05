@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:medichelp/screens/entry_form_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-class AnalyticsScreen extends StatefulWidget {
-  const AnalyticsScreen({super.key});
+class AnalyticsScreenContent extends StatefulWidget {
+  const AnalyticsScreenContent({super.key});
 
   @override
-  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+  State<AnalyticsScreenContent> createState() => _AnalyticsScreenContentState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  int _selectedIndex = 1;
+class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
   final List<bool> _isSelected = [true, false, false];
   final _storage = const FlutterSecureStorage();
 
@@ -38,10 +36,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
 
     try {
-      final response = await http
-          .get(Uri.parse('http://localhost:5001/api/analytics'), headers: {
-        'Authorization': 'Bearer $token',
-      });
+      final response = await http.get(
+        Uri.parse('http://localhost:5001/api/analytics'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -64,41 +62,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
   }
 
-  void _onItemTapped(int index) {
-    if (index == _selectedIndex) return;
-
-    if (index == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const EntryFormScreen()),
-      ).then((_) => setState(() { _selectedIndex = 1; }));
-      return;
-    }
-
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        Navigator.pushReplacementNamed(context, '/home');
-        break;
-      case 1:
-        break;
-      case 3:
-        Navigator.pushReplacementNamed(context, '/report');
-        break;
-      case 4:
-        Navigator.pushReplacementNamed(context, '/profile');
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text(
           'Аналитика и выводы',
           style: GoogleFonts.lato(
@@ -122,27 +91,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           _buildAInsightsCard(),
           const SizedBox(height: 20),
         ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Аналитика',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.link), label: 'Лекарства'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description),
-            label: 'Отчет',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0xFF007BFF),
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        showUnselectedLabels: true,
       ),
     );
   }
@@ -193,6 +141,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget _buildChartCard() {
     return Card(
       elevation: 2,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -237,6 +186,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Widget _buildAInsightsCard() {
     return Card(
+      color: Colors.white,
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
@@ -248,7 +198,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             CircleAvatar(
               radius: 24,
               backgroundColor: Colors.purple.shade100,
-              child: Icon(Icons.lightbulb_outline, color: Colors.purple.shade800),
+              child: Icon(
+                Icons.lightbulb_outline,
+                color: Colors.purple.shade800,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(

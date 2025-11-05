@@ -1,36 +1,53 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const HealthEntrySchema = new mongoose.Schema({
-    userId: {
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  entryDate: {
+    type: Date,
+    default: Date.now,
+  },
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "TreatmentCourse",
+  },
+  medications: [
+    {
+      name: String,
+      taken: Boolean,
+    },
+  ],
+  medicationsTaken: [
+    {
+      medId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
-    entryDate: {
-        type: Date,
-        default: Date.now
-    },
-    medications: [
-        {
-            name: String,
-            taken: Boolean
-        }
-    ],
-    headacheLevel: {
-        type: Number,
-        min: 0,
-        max: 10
-    },
-    symptomTags: {
-        type: [String]
-    },
-    lifestyleTags: {
-        type: [String]
-    },
-    notes: {
+        ref: "Medication",
+      },
+      status: {
         type: String,
-        trim: true
-    }
+        enum: ["taken", "skipped"],
+      },
+    },
+  ],
+  symptoms: [String],
+  headacheLevel: {
+    type: Number,
+    min: 0,
+    max: 10,
+  },
+  symptomTags: {
+    type: [String],
+  },
+  lifestyleTags: {
+    type: [String],
+  },
+  notes: {
+    type: String,
+    trim: true,
+  },
 });
 
-module.exports = mongoose.model('HealthEntry', HealthEntrySchema);
+module.exports = mongoose.model("HealthEntry", HealthEntrySchema);

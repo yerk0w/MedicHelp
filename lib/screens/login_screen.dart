@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:medichelp/screens/main_screen.dart';
+import 'package:medichelp/config/api_config.dart'; // ДОБАВЛЕНО
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -36,12 +37,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    const String apiUrl = 'http://localhost:5001/api/login';
+    // ИСПРАВЛЕНО: используем ApiConfig вместо хардкода
+    final String apiUrl = ApiConfig.login;
 
     try {
       final response = await http.post(
         Uri.parse(apiUrl),
-        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        headers: ApiConfig.defaultHeaders,
         body: json.encode({'email': email, 'password': password}),
       );
       final Map<String, dynamic> responseData = json.decode(response.body);
@@ -153,14 +155,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           });
 
                           try {
+                            // ИСПРАВЛЕНО: используем ApiConfig
                             final response = await http.post(
-                              Uri.parse(
-                                'http://localhost:5001/api/forgot-password',
-                              ),
-                              headers: {
-                                'Content-Type':
-                                    'application/json; charset=UTF-8',
-                              },
+                              Uri.parse(ApiConfig.forgotPassword),
+                              headers: ApiConfig.defaultHeaders,
                               body: json.encode({'email': email}),
                             );
 

@@ -108,7 +108,16 @@ class ApiService {
   // API методы для курсов
   static Future<List<dynamic>> getCourses() async {
     final response = await get(ApiConfig.courses);
-    return handleResponse(response) as List<dynamic>;
+    final body = json.decode(response.body);
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (body is List) {
+        return body;
+      }
+      return [];
+    } else {
+      throw Exception(body['message'] ?? 'Ошибка сервера');
+    }
   }
 
   static Future<Map<String, dynamic>> getCourseById(String courseId) async {
@@ -139,7 +148,16 @@ class ApiService {
   // API методы для записей
   static Future<List<dynamic>> getEntries() async {
     final response = await get(ApiConfig.entries);
-    return handleResponse(response) as List<dynamic>;
+    final body = json.decode(response.body);
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (body is List) {
+        return body;
+      }
+      return [];
+    } else {
+      throw Exception(body['message'] ?? 'Ошибка сервера');
+    }
   }
 
   static Future<Map<String, dynamic>> createEntry(

@@ -86,7 +86,7 @@ router.get("/today", auth, async (req, res) => {
     }).sort({ entryDate: -1 });
 
     if (!entry) {
-      return res.status(404).json({ message: "Записей на сегодня нет" });
+      return res.json([]); 
     }
 
     res.json(entry.medications || []);

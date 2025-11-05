@@ -1,21 +1,25 @@
-// lib/config/api_config.dart - добавить новые эндпоинты
+// lib/config/api_config.dart - конфигурация API с поддержкой web
 
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
   // Базовый URL API сервера
   static String get baseUrl {
-    // Определяем URL в зависимости от платформы
-    if (Platform.isAndroid) {
-      // Для Android эмулятора используем специальный адрес
-      return 'http://10.0.2.2:5001';
-    } else if (Platform.isIOS || Platform.isMacOS) {
-      // Для iOS симулятора и macOS можно использовать localhost
-      return 'http://localhost:5001';
-    } else {
-      // Для других платформ используем localhost
+    // Для web всегда используем localhost
+    if (kIsWeb) {
       return 'http://localhost:5001';
     }
+
+    // Для мобильных платформ используем localhost
+    // Если нужен Android эмулятор, раскомментируйте строки ниже:
+    // if (Platform.isAndroid) {
+    //   return 'http://10.0.2.2:5001';
+    // }
+    if (kIsWeb) {
+      return 'http://localhost:5001';
+    }
+
+    return 'http://localhost:5001';
   }
 
   // API endpoints

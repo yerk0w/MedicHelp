@@ -52,19 +52,27 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
     });
 
     try {
-      final coursesJson = await ApiService.getCourses();
-      setState(() {
-        _courses = coursesJson.map((c) => Course.fromJson(c)).toList();
-        _isLoadingCourses = false;
-      });
+      final dynamic coursesData = await ApiService.getCourses();
+
+      if (coursesData is List) {
+        setState(() {
+          _courses = coursesData.map((c) => Course.fromJson(c)).toList();
+          _isLoadingCourses = false;
+        });
+      } else {
+        setState(() {
+          _courses = [];
+          _isLoadingCourses = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _isLoadingCourses = false;
+        _courses = [];
       });
       _showErrorDialog('Ошибка загрузки курсов: $e');
     }
   }
-
   Future<void> _loadCourseMedications(String courseId) async {
     setState(() {
       _isLoadingMedications = true;
@@ -120,14 +128,12 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
     });
 
     try {
-      final medicationsTaken = _medicationsTaken.entries
-          .map(
-            (entry) => {
-              'medId': entry.key,
-              'status': entry.value ? 'taken' : 'skipped',
-            },
-          )
-          .toList();
+      final medicationsTaken = _medicationsTaken.entries.map((entry) {
+        return {
+          'medId': entry.key,
+          'status': entry.value ? 'taken' : 'skipped',
+        };
+      }).toList();
 
       final entryData = {
         'entryDate': _selectedDate.toIso8601String(),

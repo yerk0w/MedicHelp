@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:medichelp/config/api_config.dart'; // ДОБАВЛЕНО
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -46,11 +47,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    const String apiUrl = 'http://localhost:5001/api/register';
+    // ИСПРАВЛЕНО: используем ApiConfig вместо хардкода
+    final String apiUrl = ApiConfig.register;
+
     try {
       final response = await http.post(
         Uri.parse(apiUrl),
-        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        headers: ApiConfig.defaultHeaders,
         body: jsonEncode({'name': name, 'email': email, 'password': password}),
       );
       final Map<String, dynamic> responseData = json.decode(response.body);

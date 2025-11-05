@@ -176,9 +176,16 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final dynamic data = json.decode(response.body);
+
+        // ИСПРАВЛЕНИЕ: проверяем тип
+        String insightText = 'Нет инсайта на сегодня';
+        if (data is Map<String, dynamic>) {
+          insightText = data['insight'] ?? 'Нет инсайта на сегодня';
+        }
+
         setState(() {
-          _insightText = data['text'] ?? 'Нет инсайта на сегодня';
+          _insightText = insightText;
           _isLoadingInsight = false;
         });
       } else {
@@ -194,7 +201,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
       });
     }
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(

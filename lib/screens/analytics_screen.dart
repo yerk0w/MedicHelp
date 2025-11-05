@@ -1,9 +1,10 @@
+// lib/screens/analytics_screen.dart - рефакторинг с использованием ApiService
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:medichelp/services/api_service.dart';
+import 'package:medichelp/models/course_model.dart';
 
 class AnalyticsScreenContent extends StatefulWidget {
   const AnalyticsScreenContent({super.key});
@@ -14,52 +15,98 @@ class AnalyticsScreenContent extends StatefulWidget {
 
 class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
   final List<bool> _isSelected = [true, false, false];
-  final _storage = const FlutterSecureStorage();
 
   bool _isLoading = true;
+  bool _isLoadingEntries = true;
   String _aiInsights = "Загрузка выводов...";
+  List<HealthEntry> _entries = [];
+  List<FlSpot> _chartSpots = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchAnalytics();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    await Future.wait([_fetchAnalytics(), _fetchEntries()]);
   }
 
   Future<void> _fetchAnalytics() async {
-    final token = await _storage.read(key: 'jwt_token');
-    if (token == null) {
-      setState(() {
-        _isLoading = false;
-        _aiInsights = "Ошибка авторизации. Пожалуйста, войдите заново.";
-      });
-      return;
-    }
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5001/api/analytics'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _aiInsights = data['insights'];
-          _isLoading = false;
-        });
-      } else {
-        final data = json.decode(response.body);
-        setState(() {
-          _aiInsights = data['message'] ?? "Ошибка загрузки данных";
-          _isLoading = false;
-        });
-      }
+      final data = await ApiService.getAnalytics();
+      setState(() {
+        _aiInsights = data['insights'];
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
-        _aiInsights = "Ошибка подключения к серверу: $e";
+        _aiInsights = "Ошибка загрузки: $e";
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _fetchEntries() async {
+    setState(() {
+      _isLoadingEntries = true;
+    });
+
+    try {
+      final entriesJson = await ApiService.getEntries();
+
+      // Фильтруем записи по выбранному периоду
+      final now = DateTime.now();
+      final daysToShow = _getDaysToShow();
+      final cutoffDate = now.subtract(Duration(days: daysToShow));
+
+      final recentEntries = entriesJson.where((entry) {
+        final entryDate = DateTime.parse(entry['entryDate']);
+        return entryDate.isAfter(cutoffDate);
+      }).toList();
+
+      // Сортируем по дате
+      recentEntries.sort((a, b) {
+        final dateA = DateTime.parse(a['entryDate']);
+        final dateB = DateTime.parse(b['entryDate']);
+        return dateA.compareTo(dateB);
+      });
+
+      // Создаем точки для графика
+      final spots = <FlSpot>[];
+      final entries = <HealthEntry>[];
+
+      for (int i = 0; i < recentEntries.length; i++) {
+        final entry = HealthEntry.fromJson(recentEntries[i]);
+        entries.add(entry);
+        spots.add(FlSpot(i.toDouble(), entry.headacheLevel.toDouble()));
+      }
+
+      setState(() {
+        _entries = entries;
+        _chartSpots = spots;
+        _isLoadingEntries = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingEntries = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка загрузки записей: $e')));
+      }
+    }
+  }
+
+  int _getDaysToShow() {
+    if (_isSelected[0]) return 7; // Неделя
+    if (_isSelected[1]) return 30; // Месяц
+    return 365; // Все время
   }
 
   @override
@@ -80,17 +127,20 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
         elevation: 0,
         toolbarHeight: 80,
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          _buildTimeToggles(),
-          const SizedBox(height: 20),
-          _buildChartCard(),
-          const SizedBox(height: 20),
-          _buildInsightsHeader(),
-          _buildAInsightsCard(),
-          const SizedBox(height: 20),
-        ],
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: [
+            _buildTimeToggles(),
+            const SizedBox(height: 20),
+            _buildChartCard(),
+            const SizedBox(height: 20),
+            _buildInsightsHeader(),
+            _buildAInsightsCard(),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -105,6 +155,7 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
               _isSelected[i] = i == index;
             }
           });
+          _fetchEntries();
         },
         borderRadius: BorderRadius.circular(8.0),
         selectedColor: Colors.white,
@@ -158,16 +209,42 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.link, color: Colors.grey.shade600, size: 16),
+                Icon(Icons.circle, color: const Color(0xFF007BFF), size: 12),
                 const SizedBox(width: 4),
                 Text(
-                  'Прием лекарств отмечен значком',
-                  style: GoogleFonts.lato(color: Colors.grey.shade600),
+                  'Синий круг - прием лекарств',
+                  style: GoogleFonts.lato(
+                    color: Colors.grey.shade600,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            SizedBox(height: 150, child: LineChart(_buildAnalyticsChartData())),
+            SizedBox(
+              height: 150,
+              child: _isLoadingEntries
+                  ? const Center(child: CircularProgressIndicator())
+                  : _chartSpots.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Нет данных для отображения',
+                            style: GoogleFonts.lato(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    )
+                  : LineChart(_buildAnalyticsChartData()),
+            ),
           ],
         ),
       ),
@@ -223,14 +300,12 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
   }
 
   LineChartData _buildAnalyticsChartData() {
-    final List<FlSpot> spots = [
-      const FlSpot(8, 7),
-      const FlSpot(9, 6),
-      const FlSpot(10, 3),
-      const FlSpot(11, 4),
-      const FlSpot(12, 6.5),
-      const FlSpot(14, 3.5),
-    ];
+    if (_chartSpots.isEmpty) {
+      return LineChartData();
+    }
+
+    final maxX = _chartSpots.length - 1.0;
+    final minX = 0.0;
 
     return LineChartData(
       gridData: FlGridData(
@@ -257,7 +332,7 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
         bottomTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
-            interval: 1,
+            interval: _chartSpots.length > 5 ? 2 : 1,
             reservedSize: 32,
             getTitlesWidget: _bottomTitleWidgets,
           ),
@@ -268,13 +343,13 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
         ),
       ),
       borderData: FlBorderData(show: false),
-      minX: 8,
-      maxX: 14,
+      minX: minX,
+      maxX: maxX,
       minY: 0,
       maxY: 10,
       lineBarsData: [
         LineChartBarData(
-          spots: spots,
+          spots: _chartSpots,
           isCurved: true,
           color: const Color(0xFF007BFF),
           barWidth: 4,
@@ -282,13 +357,20 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
           dotData: FlDotData(
             show: true,
             getDotPainter: (spot, percent, barData, index) {
-              if (spot.x == 9 || spot.x == 12) {
-                return FlDotCirclePainter(
-                  radius: 6,
-                  color: Colors.white,
-                  strokeWidth: 3,
-                  strokeColor: const Color(0xFF007BFF),
+              // Проверяем, были ли приняты лекарства в этот день
+              if (index < _entries.length) {
+                final hasMedication = _entries[index].medicationsTaken.any(
+                  (m) => m.status == 'taken',
                 );
+
+                if (hasMedication) {
+                  return FlDotCirclePainter(
+                    radius: 6,
+                    color: Colors.white,
+                    strokeWidth: 3,
+                    strokeColor: const Color(0xFF007BFF),
+                  );
+                }
               }
               return FlDotCirclePainter(
                 radius: 4,
@@ -318,40 +400,41 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
   }
 
   Widget _bottomTitleWidgets(double value, TitleMeta meta) {
-    String text;
-    switch (value.toInt()) {
-      case 8:
-        text = '8 окт';
-        break;
-      case 9:
-        text = '9 окт';
-        break;
-      case 10:
-        text = '10 окт';
-        break;
-      case 11:
-        text = '11 окт';
-        break;
-      case 12:
-        text = '12 окт';
-        break;
-      case 14:
-        text = '14 окт';
-        break;
-      default:
-        return Container();
-    }
+    final index = value.toInt();
+    if (index < 0 || index >= _entries.length) return Container();
+
+    final date = _entries[index].entryDate;
+    final dateStr = '${date.day} ${_getMonthName(date.month)}';
+
     return SideTitleWidget(
       axisSide: meta.axisSide,
       space: 8,
       child: Text(
-        text,
+        dateStr,
         style: GoogleFonts.lato(
           color: Colors.grey.shade600,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
       ),
     );
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'янв',
+      'фев',
+      'мар',
+      'апр',
+      'май',
+      'июн',
+      'июл',
+      'авг',
+      'сен',
+      'окт',
+      'ноя',
+      'дек',
+    ];
+    return months[month - 1];
   }
 }

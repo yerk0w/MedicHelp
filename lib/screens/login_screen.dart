@@ -85,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _showForgotPasswordDialog() async {
     final TextEditingController resetEmailController = TextEditingController();
     bool isLoading = false;
-    
+
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -122,8 +122,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               actions: <Widget>[
                 TextButton(
-                  onPressed: isLoading 
-                      ? null 
+                  onPressed: isLoading
+                      ? null
                       : () => Navigator.of(context).pop(),
                   child: Text(
                     'Отмена',
@@ -137,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? null
                       : () async {
                           final email = resetEmailController.text.trim();
-                          
+
                           if (email.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -147,18 +147,23 @@ class _LoginScreenState extends State<LoginScreen> {
                             );
                             return;
                           }
-                          
+
                           setState(() {
                             isLoading = true;
                           });
-                          
+
                           try {
                             final response = await http.post(
-                              Uri.parse('http://localhost:5001/api/forgot-password'),
-                              headers: {'Content-Type': 'application/json; charset=UTF-8'},
+                              Uri.parse(
+                                'http://localhost:5001/api/forgot-password',
+                              ),
+                              headers: {
+                                'Content-Type':
+                                    'application/json; charset=UTF-8',
+                              },
                               body: json.encode({'email': email}),
                             );
-                            
+
                             if (response.statusCode == 200) {
                               if (dialogContext.mounted) {
                                 Navigator.of(dialogContext).pop();
@@ -166,7 +171,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   SnackBar(
                                     content: Text(
                                       'Инструкции отправлены на $email',
-                                      style: const TextStyle(color: Colors.white),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
                                     ),
                                     backgroundColor: Colors.green,
                                     duration: const Duration(seconds: 3),
@@ -204,9 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text(
                           'Отправить',
@@ -219,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       },
     );
-    
+
     resetEmailController.dispose();
   }
 
@@ -351,16 +356,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _showForgotPasswordDialog,
-                child: const Text(
-                  'Забыли пароль?',
-                  style: TextStyle(color: Color(0xFF007BFF)),
-                ),
-              ),
-            ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _showForgotPasswordDialog,
+                        child: const Text(
+                          'Забыли пароль?',
+                          style: TextStyle(color: Color(0xFF007BFF)),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 10.0),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(

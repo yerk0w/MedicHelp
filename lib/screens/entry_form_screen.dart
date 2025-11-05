@@ -1,9 +1,10 @@
+// lib/screens/entry_form_screen.dart - рефакторинг с использованием ApiService
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
-import 'dart:convert';
+import 'package:medichelp/services/api_service.dart';
+import 'package:medichelp/models/course_model.dart';
 
 class EntryFormScreen extends StatefulWidget {
   const EntryFormScreen({super.key});
@@ -13,18 +14,18 @@ class EntryFormScreen extends StatefulWidget {
 }
 
 class _EntryFormScreenState extends State<EntryFormScreen> {
-  final _storage = const FlutterSecureStorage();
   final _notesController = TextEditingController();
   final _symptomController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
 
-  List<Map<String, dynamic>> _courses = [];
+  List<Course> _courses = [];
   String? _selectedCourseId;
-  List<Map<String, dynamic>> _courseMedications = [];
+  List<Medication> _courseMedications = [];
   Map<String, bool> _medicationsTaken = {};
 
   List<String> _symptoms = [];
+  double _headacheLevel = 0;
   final List<String> _lifestyleTags = [
     'стресс',
     'плохой сон',
@@ -37,6 +38,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
 
   bool _isLoadingCourses = true;
   bool _isLoadingMedications = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -45,38 +47,16 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
   }
 
   Future<void> _loadCourses() async {
-    final token = await _storage.read(key: 'jwt_token');
-    if (token == null) return;
-
     setState(() {
       _isLoadingCourses = true;
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5001/api/courses'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          _courses = data
-              .map(
-                (c) => {
-                  'id': c['_id'],
-                  'name': c['name'],
-                  'mainSymptom': c['mainSymptom'],
-                },
-              )
-              .toList();
-          _isLoadingCourses = false;
-        });
-      } else {
-        setState(() {
-          _isLoadingCourses = false;
-        });
-      }
+      final coursesJson = await ApiService.getCourses();
+      setState(() {
+        _courses = coursesJson.map((c) => Course.fromJson(c)).toList();
+        _isLoadingCourses = false;
+      });
     } catch (e) {
       setState(() {
         _isLoadingCourses = false;
@@ -86,47 +66,26 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
   }
 
   Future<void> _loadCourseMedications(String courseId) async {
-    final token = await _storage.read(key: 'jwt_token');
-    if (token == null) return;
-
     setState(() {
       _isLoadingMedications = true;
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5001/api/courses/$courseId'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
+      final courseData = await ApiService.getCourseById(courseId);
+      final List<dynamic> medications = courseData['medications'];
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> medications = data['medications'];
+      setState(() {
+        _courseMedications = medications
+            .map((m) => Medication.fromJson(m))
+            .toList();
 
-        setState(() {
-          _courseMedications = medications
-              .map(
-                (m) => {
-                  'id': m['_id'],
-                  'name': m['name'],
-                  'dosage': m['dosage'],
-                  'schedule': m['schedule'],
-                },
-              )
-              .toList();
+        _medicationsTaken.clear();
+        for (var med in _courseMedications) {
+          _medicationsTaken[med.id] = false;
+        }
 
-          _medicationsTaken.clear();
-          for (var med in _courseMedications) {
-            _medicationsTaken[med['id']] = false;
-          }
-
-          _isLoadingMedications = false;
-        });
-      } else {
-        setState(() {
-          _isLoadingMedications = false;
-        });
-      }
+        _isLoadingMedications = false;
+      });
     } catch (e) {
       setState(() {
         _isLoadingMedications = false;
@@ -156,50 +115,50 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
       return;
     }
 
-    final token = await _storage.read(key: 'jwt_token');
-    if (token == null) {
-      _showErrorDialog('Ошибка авторизации');
-      return;
-    }
-
-    final medicationsTaken = _medicationsTaken.entries
-        .map(
-          (entry) => {
-            'medId': entry.key,
-            'status': entry.value ? 'taken' : 'skipped',
-          },
-        )
-        .toList();
-
-    final body = json.encode({
-      'entryDate': _selectedDate.toIso8601String(),
-      'courseId': _selectedCourseId,
-      'medicationsTaken': medicationsTaken,
-      'symptoms': _symptoms,
-      'lifestyleTags': _selectedLifestyleTags.toList(),
-      'notes': _notesController.text,
+    setState(() {
+      _isSaving = true;
     });
 
     try {
-      final response = await http.post(
-        Uri.parse('http://localhost:5001/api/entries'),
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer $token',
-        },
-        body: body,
-      );
+      final medicationsTaken = _medicationsTaken.entries
+          .map(
+            (entry) => {
+              'medId': entry.key,
+              'status': entry.value ? 'taken' : 'skipped',
+            },
+          )
+          .toList();
 
-      if (response.statusCode == 201) {
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      } else {
-        final responseData = json.decode(response.body);
-        _showErrorDialog(responseData['message'] ?? 'Ошибка сервера');
+      final entryData = {
+        'entryDate': _selectedDate.toIso8601String(),
+        'courseId': _selectedCourseId,
+        'medicationsTaken': medicationsTaken,
+        'symptoms': _symptoms,
+        'symptomTags': _symptoms,
+        'headacheLevel': _headacheLevel.toInt(),
+        'lifestyleTags': _selectedLifestyleTags.toList(),
+        'notes': _notesController.text,
+      };
+
+      await ApiService.createEntry(entryData);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Запись успешно сохранена'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
       }
     } catch (e) {
-      _showErrorDialog('Ошибка подключения: $e');
+      _showErrorDialog('Ошибка сохранения: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
 
@@ -237,7 +196,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
               ),
             ),
             Text(
-              DateFormat('d MMMM y, HH:mm').format(_selectedDate),
+              DateFormat('d MMMM y, HH:mm', 'ru').format(_selectedDate),
               style: GoogleFonts.lato(
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
@@ -263,6 +222,11 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
             const SizedBox(height: 24),
           ],
 
+          _buildSectionTitle('Уровень головной боли'),
+          const SizedBox(height: 12),
+          _buildHeadacheLevelSlider(),
+          const SizedBox(height: 24),
+
           _buildSectionTitle('Симптомы'),
           const SizedBox(height: 12),
           _buildSymptomInput(),
@@ -283,7 +247,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: ElevatedButton(
-          onPressed: _saveEntry,
+          onPressed: _isSaving ? null : _saveEntry,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF007BFF),
             foregroundColor: Colors.white,
@@ -296,7 +260,9 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          child: const Text('Сохранить запись'),
+          child: _isSaving
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Text('Сохранить запись'),
         ),
       ),
     );
@@ -328,9 +294,23 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
         color: Colors.white,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Text(
-            'Нет доступных курсов. Создайте курс в настройках.',
-            style: GoogleFonts.lato(color: Colors.grey),
+          child: Column(
+            children: [
+              Icon(Icons.info_outline, color: Colors.grey.shade400, size: 48),
+              const SizedBox(height: 8),
+              Text(
+                'Нет доступных курсов',
+                style: GoogleFonts.lato(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Создайте курс в настройках',
+                style: GoogleFonts.lato(color: Colors.grey.shade600),
+              ),
+            ],
           ),
         ),
       );
@@ -353,9 +333,9 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
       hint: Text('Выберите курс', style: GoogleFonts.lato()),
       items: _courses.map((course) {
         return DropdownMenuItem<String>(
-          value: course['id'],
+          value: course.id,
           child: Text(
-            '${course['name']} (${course['mainSymptom']})',
+            '${course.name} (${course.mainSymptom})',
             style: GoogleFonts.lato(),
           ),
         );
@@ -388,28 +368,87 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
 
     return Column(
       children: _courseMedications.map((med) {
-        final medId = med['id'];
-        final schedule = (med['schedule'] as List).join(', ');
+        final schedule = med.schedule.join(', ');
 
         return CheckboxListTile(
           title: Text(
-            '${med['name']} (${med['dosage']})',
+            '${med.name} (${med.dosage})',
             style: GoogleFonts.lato(fontSize: 16),
           ),
           subtitle: Text(
             'Расписание: $schedule',
             style: GoogleFonts.lato(fontSize: 14, color: Colors.grey),
           ),
-          value: _medicationsTaken[medId] ?? false,
+          value: _medicationsTaken[med.id] ?? false,
           onChanged: (bool? value) {
             setState(() {
-              _medicationsTaken[medId] = value ?? false;
+              _medicationsTaken[med.id] = value ?? false;
             });
           },
           activeColor: const Color(0xFF007BFF),
           contentPadding: EdgeInsets.zero,
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildHeadacheLevelSlider() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Уровень: ${_headacheLevel.toInt()}/10',
+              style: GoogleFonts.lato(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF007BFF),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _headacheLevel < 4
+                    ? Colors.green.shade100
+                    : _headacheLevel < 7
+                    ? Colors.orange.shade100
+                    : Colors.red.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _headacheLevel < 4
+                    ? 'Легкая'
+                    : _headacheLevel < 7
+                    ? 'Средняя'
+                    : 'Сильная',
+                style: GoogleFonts.lato(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _headacheLevel < 4
+                      ? Colors.green.shade800
+                      : _headacheLevel < 7
+                      ? Colors.orange.shade800
+                      : Colors.red.shade800,
+                ),
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          value: _headacheLevel,
+          min: 0,
+          max: 10,
+          divisions: 10,
+          label: _headacheLevel.toInt().toString(),
+          onChanged: (value) {
+            setState(() {
+              _headacheLevel = value;
+            });
+          },
+          activeColor: const Color(0xFF007BFF),
+        ),
+      ],
     );
   }
 
@@ -435,6 +474,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
                 borderSide: const BorderSide(color: Color(0xFF007BFF)),
               ),
             ),
+            onSubmitted: (_) => _addSymptom(),
           ),
         ),
         const SizedBox(width: 8),

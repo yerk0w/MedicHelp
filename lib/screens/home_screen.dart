@@ -1,8 +1,10 @@
+// lib/screens/home_screen.dart - использовать ApiConfig
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:medichelp/config/api_config.dart';
 import 'dart:convert';
 
 class HomeScreenContent extends StatefulWidget {
@@ -15,8 +17,19 @@ class HomeScreenContent extends StatefulWidget {
 class _HomeScreenContentState extends State<HomeScreenContent> {
   String _userName = "...";
   bool _isLoadingPlan = true;
+  bool _isLoadingCourse = true;
+  bool _isLoadingInsight = true;
   final _storage = const FlutterSecureStorage();
   List<Map<String, dynamic>> _medications = [];
+
+  // Данные прогресса курса
+  String _courseName = "";
+  int _daysPassed = 0;
+  int _totalDays = 0;
+  double _progress = 0.0;
+
+  // Инсайд дня
+  String _insightText = "Загрузка инсайта...";
 
   @override
   void initState() {
@@ -27,6 +40,8 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
   Future<void> _loadInitialData() async {
     await _loadUserName();
     await _loadTodayPlan();
+    await _loadCourseProgress();
+    await _loadDailyInsight();
   }
 
   Future<void> _loadUserName() async {
@@ -50,8 +65,8 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5001/api/entries/today'),
-        headers: {'Authorization': 'Bearer $token'},
+        Uri.parse(ApiConfig.entriesToday),
+        headers: ApiConfig.getAuthHeaders(token),
       );
 
       if (response.statusCode == 200) {
@@ -86,12 +101,106 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
     }
   }
 
+  Future<void> _loadCourseProgress() async {
+    final token = await _storage.read(key: 'jwt_token');
+    if (token == null) return;
+
+    setState(() {
+      _isLoadingCourse = true;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConfig.courses),
+        headers: ApiConfig.getAuthHeaders(token),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> courses = json.decode(response.body);
+
+        if (courses.isEmpty) {
+          setState(() {
+            _courseName = "Нет активных курсов";
+            _isLoadingCourse = false;
+          });
+          return;
+        }
+
+        // Берем первый курс
+        final course = courses[0];
+        final startDate = DateTime.parse(course['startDate']);
+        final endDate = course['endDate'] != null
+            ? DateTime.parse(course['endDate'])
+            : DateTime.now().add(
+                const Duration(days: 30),
+              ); // Если нет endDate, берем +30 дней
+
+        final now = DateTime.now();
+        final totalDays = endDate.difference(startDate).inDays;
+        final daysPassed = now.difference(startDate).inDays.clamp(0, totalDays);
+        final progress = totalDays > 0 ? daysPassed / totalDays : 0.0;
+
+        setState(() {
+          _courseName = course['name'] ?? 'Курс';
+          _totalDays = totalDays;
+          _daysPassed = daysPassed;
+          _progress = progress.clamp(0.0, 1.0);
+          _isLoadingCourse = false;
+        });
+      } else {
+        setState(() {
+          _courseName = "Ошибка загрузки";
+          _isLoadingCourse = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _courseName = "Ошибка соединения";
+        _isLoadingCourse = false;
+      });
+    }
+  }
+
+  Future<void> _loadDailyInsight() async {
+    final token = await _storage.read(key: 'jwt_token');
+    if (token == null) return;
+
+    setState(() {
+      _isLoadingInsight = true;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConfig.insightToday),
+        headers: ApiConfig.getAuthHeaders(token),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _insightText = data['text'] ?? 'Нет инсайта на сегодня';
+          _isLoadingInsight = false;
+        });
+      } else {
+        setState(() {
+          _insightText = 'Не удалось загрузить инсайт';
+          _isLoadingInsight = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _insightText = 'Ошибка загрузки инсайта';
+        _isLoadingInsight = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
       body: RefreshIndicator(
-        onRefresh: _loadTodayPlan,
+        onRefresh: _loadInitialData,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -104,7 +213,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                 children: [
                   _buildPlanCard(),
                   const SizedBox(height: 20),
-                  _buildChartCard(),
+                  _buildCourseProgressCard(),
                   const SizedBox(height: 20),
                   _buildInsightsCard(),
                   const SizedBox(height: 80),
@@ -215,7 +324,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
     );
   }
 
-  Widget _buildChartCard() {
+  Widget _buildCourseProgressCard() {
     return Card(
       elevation: 2,
       color: Colors.white,
@@ -227,10 +336,10 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
           children: [
             Row(
               children: [
-                const Icon(Icons.show_chart, color: Color(0xFF33D4A3)),
+                const Icon(Icons.trending_up, color: Color(0xFF33D4A3)),
                 const SizedBox(width: 8),
                 Text(
-                  'Динамика симптомов',
+                  'Прогресс курса',
                   style: GoogleFonts.lato(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
@@ -239,12 +348,40 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              'Головная боль - 7 дней',
-              style: GoogleFonts.lato(color: Colors.grey),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(height: 120, child: LineChart(_mainchartData())),
+            _isLoadingCourse
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Курс: $_courseName',
+                        style: GoogleFonts.lato(
+                          color: Colors.grey.shade700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: LinearProgressIndicator(
+                          value: _progress,
+                          minHeight: 12,
+                          backgroundColor: Colors.grey[200],
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Color(0xFF33D4A3),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'День $_daysPassed из $_totalDays',
+                        style: GoogleFonts.lato(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
           ],
         ),
       ),
@@ -278,81 +415,18 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Ваше давление в норме последние 3 дня. Отличная работа!',
-                  style: GoogleFonts.lato(),
-                ),
+                _isLoadingInsight
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_insightText, style: GoogleFonts.lato()),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-
-  LineChartData _mainchartData() {
-    return LineChartData(
-      gridData: const FlGridData(show: false),
-      titlesData: FlTitlesData(
-        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles: const AxisTitles(
-          sideTitles: SideTitles(showTitles: false),
-        ),
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: 32,
-            interval: 1,
-            getTitlesWidget: (value, meta) {
-              const style = TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              );
-              switch (value.toInt()) {
-                case 0:
-                  return const Text('Пн', style: style);
-                case 1:
-                  return const Text('Вт', style: style);
-                case 2:
-                  return const Text('Ср', style: style);
-                case 3:
-                  return const Text('Чт', style: style);
-                case 4:
-                  return const Text('Пт', style: style);
-                case 5:
-                  return const Text('Сб', style: style);
-                case 6:
-                  return const Text('Вс', style: style);
-              }
-              return const Text('', style: style);
-            },
-          ),
-        ),
-      ),
-      lineBarsData: [
-        LineChartBarData(
-          spots: const [
-            FlSpot(0, 3),
-            FlSpot(1, 5),
-            FlSpot(2, 4),
-            FlSpot(3, 6),
-            FlSpot(4, 5),
-            FlSpot(5, 7),
-            FlSpot(6, 6),
-          ],
-          isCurved: true,
-          color: const Color(0xFF33D4A3),
-          barWidth: 5,
-          isStrokeCapRound: true,
-          dotData: const FlDotData(show: false),
-          belowBarData: BarAreaData(
-            show: true,
-            color: const Color(0xFF33D4A3).withOpacity(0.3),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -1,11 +1,11 @@
+// lib/screens/report_screen.dart - рефакторинг с использованием ApiService
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
-import 'package:medichelp/screens/entry_form_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:medichelp/services/api_service.dart';
+import 'package:medichelp/models/course_model.dart';
 
 class ReportScreenContent extends StatefulWidget {
   const ReportScreenContent({super.key});
@@ -15,10 +15,7 @@ class ReportScreenContent extends StatefulWidget {
 }
 
 class _ReportScreenContentState extends State<ReportScreenContent> {
-  int _selectedIndex = 3;
-  final _storage = const FlutterSecureStorage();
-
-  List<Map<String, dynamic>> _courses = [];
+  List<Course> _courses = [];
   bool _isLoadingCourses = true;
 
   @override
@@ -28,47 +25,25 @@ class _ReportScreenContentState extends State<ReportScreenContent> {
   }
 
   Future<void> _loadCourses() async {
-    final token = await _storage.read(key: 'jwt_token');
-    if (token == null) return;
-
     setState(() {
       _isLoadingCourses = true;
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5001/api/courses'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          _courses = data
-              .map(
-                (c) => {
-                  'id': c['_id'],
-                  'name': c['name'],
-                  'mainSymptom': c['mainSymptom'],
-                  'startDate': c['startDate'],
-                  'endDate': c['endDate'],
-                },
-              )
-              .toList();
-          _isLoadingCourses = false;
-        });
-      } else {
-        setState(() {
-          _isLoadingCourses = false;
-        });
-      }
+      final coursesJson = await ApiService.getCourses();
+      setState(() {
+        _courses = coursesJson.map((c) => Course.fromJson(c)).toList();
+        _isLoadingCourses = false;
+      });
     } catch (e) {
       setState(() {
         _isLoadingCourses = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ошибка загрузки курсов: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка загрузки курсов: $e')));
+      }
     }
   }
 
@@ -82,36 +57,6 @@ class _ReportScreenContentState extends State<ReportScreenContent> {
         ),
       ),
     );
-  }
-
-  void _onItemTapped(int index) {
-    if (index == _selectedIndex) return;
-
-    if (index == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const EntryFormScreen()),
-      );
-      return;
-    }
-
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        Navigator.pushReplacementNamed(context, '/home');
-        break;
-      case 1:
-        Navigator.pushReplacementNamed(context, '/analytics');
-        break;
-      case 3:
-        break;
-      case 4:
-        Navigator.pushReplacementNamed(context, '/profile');
-        break;
-    }
   }
 
   @override
@@ -131,42 +76,62 @@ class _ReportScreenContentState extends State<ReportScreenContent> {
         backgroundColor: const Color(0xFFF4F6F8),
         elevation: 0,
       ),
-      body: _isLoadingCourses
-          ? const Center(child: CircularProgressIndicator())
-          : _courses.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Text(
-                  'Нет доступных курсов.\nСоздайте курс, чтобы увидеть отчет.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.lato(fontSize: 16, color: Colors.grey),
+      body: RefreshIndicator(
+        onRefresh: _loadCourses,
+        child: _isLoadingCourses
+            ? const Center(child: CircularProgressIndicator())
+            : _courses.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.description_outlined,
+                        size: 80,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Нет курсов для отчетов',
+                        style: GoogleFonts.lato(
+                          fontSize: 18,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Создайте курс лечения в профиле',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.lato(
+                          fontSize: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(16.0),
+                itemCount: _courses.length,
+                itemBuilder: (context, index) {
+                  final course = _courses[index];
+                  return _buildCourseCard(course);
+                },
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: _courses.length,
-              itemBuilder: (context, index) {
-                final course = _courses[index];
-                return _buildCourseCard(course);
-              },
-            ),
+      ),
     );
   }
 
-  Widget _buildCourseCard(Map<String, dynamic> course) {
-    final startDate = DateTime.parse(course['startDate']);
-    final endDate = course['endDate'] != null
-        ? DateTime.parse(course['endDate'])
-        : null;
-
+  Widget _buildCourseCard(Course course) {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: () => _openCourseReport(course['id'], course['name']),
+        onTap: () => _openCourseReport(course.id, course.name),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -179,7 +144,7 @@ class _ReportScreenContentState extends State<ReportScreenContent> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
-                  Icons.medical_services,
+                  Icons.analytics_outlined,
                   color: Color(0xFF007BFF),
                   size: 32,
                 ),
@@ -190,7 +155,7 @@ class _ReportScreenContentState extends State<ReportScreenContent> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      course['name'],
+                      course.name,
                       style: GoogleFonts.lato(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -198,24 +163,38 @@ class _ReportScreenContentState extends State<ReportScreenContent> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Симптом: ${course['mainSymptom']}',
+                      'Симптом: ${course.mainSymptom}',
                       style: GoogleFonts.lato(
                         fontSize: 14,
                         color: Colors.grey.shade700,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Период: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${endDate != null ? DateFormat('dd.MM.yyyy').format(endDate) : "активен"}',
-                      style: GoogleFonts.lato(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${DateFormat('dd.MM.yyyy').format(course.startDate)} - ${course.endDate != null ? DateFormat('dd.MM.yyyy').format(course.endDate!) : "активен"}',
+                          style: GoogleFonts.lato(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.grey.shade400,
+                size: 16,
+              ),
             ],
           ),
         ),
@@ -241,8 +220,6 @@ class CourseReportDetailScreen extends StatefulWidget {
 }
 
 class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
-  final _storage = const FlutterSecureStorage();
-
   bool _isLoading = true;
   Map<String, dynamic>? _reportData;
   String _errorMessage = '';
@@ -254,36 +231,20 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
   }
 
   Future<void> _loadReport() async {
-    final token = await _storage.read(key: 'jwt_token');
-    if (token == null) return;
-
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5001/api/report/${widget.courseId}'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _reportData = data;
-          _isLoading = false;
-        });
-      } else {
-        final errorData = json.decode(response.body);
-        setState(() {
-          _errorMessage = errorData['message'] ?? 'Ошибка загрузки отчета';
-          _isLoading = false;
-        });
-      }
+      final data = await ApiService.getReportByCourse(widget.courseId);
+      setState(() {
+        _reportData = data;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Ошибка подключения: $e';
+        _errorMessage = 'Ошибка загрузки отчета: $e';
         _isLoading = false;
       });
     }
@@ -306,7 +267,11 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
         actions: [
-          IconButton(icon: const Icon(Icons.share_outlined), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadReport,
+            tooltip: 'Обновить',
+          ),
         ],
       ),
       body: _isLoading
@@ -315,25 +280,115 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
-                child: Text(
-                  _errorMessage,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.lato(fontSize: 16, color: Colors.red),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red.shade300,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorMessage,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.lato(fontSize: 16, color: Colors.red),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _loadReport,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Попробовать снова'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF007BFF),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             )
-          : ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                _buildComplianceCard(),
-                const SizedBox(height: 24),
-                _buildDynamicsSection(),
-                const SizedBox(height: 24),
-                _buildAIInsightsSection(),
-                const SizedBox(height: 24),
-                _buildMedicationsTable(),
-              ],
+          : RefreshIndicator(
+              onRefresh: _loadReport,
+              child: ListView(
+                padding: const EdgeInsets.all(16.0),
+                children: [
+                  _buildSummaryCards(),
+                  const SizedBox(height: 24),
+                  _buildComplianceCard(),
+                  const SizedBox(height: 24),
+                  _buildDynamicsSection(),
+                  const SizedBox(height: 24),
+                  _buildAIInsightsSection(),
+                  const SizedBox(height: 24),
+                  _buildMedicationsTable(),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
+    );
+  }
+
+  Widget _buildSummaryCards() {
+    final totalEntries = _reportData?['statistics']?['totalEntries'] ?? 0;
+    final compliance = _reportData?['statistics']?['compliancePercent'] ?? 0;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMiniCard(
+            'Записей',
+            totalEntries.toString(),
+            Icons.edit_note,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildMiniCard(
+            'Соблюдение',
+            '$compliance%',
+            Icons.check_circle_outline,
+            Colors.green,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMiniCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: GoogleFonts.lato(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              title,
+              style: GoogleFonts.lato(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -348,12 +403,22 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Соблюдение режима',
-              style: GoogleFonts.lato(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Icon(
+                  Icons.medication,
+                  color: const Color(0xFF007BFF),
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Соблюдение режима',
+                  style: GoogleFonts.lato(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Row(
@@ -365,7 +430,11 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
                   style: GoogleFonts.lato(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF007BFF),
+                    color: compliance >= 80
+                        ? Colors.green
+                        : compliance >= 60
+                        ? Colors.orange
+                        : Colors.red,
                   ),
                 ),
               ],
@@ -377,8 +446,12 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
                 value: compliance / 100,
                 minHeight: 12,
                 backgroundColor: Colors.grey[200],
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFF007BFF),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  compliance >= 80
+                      ? Colors.green
+                      : compliance >= 60
+                      ? Colors.orange
+                      : Colors.red,
                 ),
               ),
             ),
@@ -401,12 +474,22 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Динамика основного симптома',
-              style: GoogleFonts.lato(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Icon(
+                  Icons.trending_up,
+                  color: const Color(0xFF007BFF),
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Динамика симптома',
+                  style: GoogleFonts.lato(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
@@ -418,9 +501,20 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
               height: 180,
               child: symptomLevels.isEmpty
                   ? Center(
-                      child: Text(
-                        'Недостаточно данных',
-                        style: GoogleFonts.lato(color: Colors.grey),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Недостаточно данных',
+                            style: GoogleFonts.lato(color: Colors.grey),
+                          ),
+                        ],
                       ),
                     )
                   : LineChart(_buildSymptomChart(symptomLevels)),
@@ -439,12 +533,23 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
     }
 
     return LineChartData(
-      gridData: const FlGridData(show: false),
+      gridData: FlGridData(
+        show: true,
+        drawVerticalLine: false,
+        horizontalInterval: 2,
+        getDrawingHorizontalLine: (value) {
+          return FlLine(
+            color: Colors.grey.shade300,
+            strokeWidth: 1,
+            dashArray: [5, 5],
+          );
+        },
+      ),
       titlesData: FlTitlesData(
         leftTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
-            interval: 3,
+            interval: 2,
             reservedSize: 28,
             getTitlesWidget: (value, meta) {
               return Text(
@@ -492,10 +597,13 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
           spots: spots,
           isCurved: true,
           color: const Color(0xFF007BFF),
-          barWidth: 4,
+          barWidth: 3,
           isStrokeCapRound: true,
           dotData: const FlDotData(show: true),
-          belowBarData: BarAreaData(show: false),
+          belowBarData: BarAreaData(
+            show: true,
+            color: const Color(0xFF007BFF).withOpacity(0.1),
+          ),
         ),
       ],
     );
@@ -509,17 +617,22 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
       final correlations = aiSummary['correlations'] as List? ?? [];
       final recommendations = aiSummary['recommendations'] ?? '';
 
-      insightsText = 'Корреляции:\n';
-      for (var corr in correlations) {
-        insightsText += '• $corr\n';
+      if (correlations.isNotEmpty) {
+        insightsText = 'Корреляции:\n';
+        for (var corr in correlations) {
+          insightsText += '• $corr\n';
+        }
       }
       if (recommendations.isNotEmpty) {
-        insightsText += '\nРекомендации:\n$recommendations';
+        if (insightsText.isNotEmpty) insightsText += '\n';
+        insightsText += 'Рекомендации:\n$recommendations';
       }
     } else if (aiSummary is String) {
       insightsText = aiSummary;
-    } else {
-      insightsText = 'Анализ недоступен';
+    }
+
+    if (insightsText.isEmpty) {
+      insightsText = 'Анализ недоступен. Добавьте больше записей.';
     }
 
     return Card(
@@ -532,10 +645,14 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.lightbulb_outline, color: Color(0xFF007BFF)),
+                Icon(
+                  Icons.psychology_outlined,
+                  color: Colors.purple.shade700,
+                  size: 24,
+                ),
                 const SizedBox(width: 8),
                 Text(
-                  'Выводы ИИ-Аналитика',
+                  'Анализ от ИИ',
                   style: GoogleFonts.lato(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -544,12 +661,19 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            Text(
-              insightsText,
-              style: GoogleFonts.lato(
-                fontSize: 15,
-                height: 1.5,
-                color: Colors.black87,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                insightsText,
+                style: GoogleFonts.lato(
+                  fontSize: 15,
+                  height: 1.6,
+                  color: Colors.black87,
+                ),
               ),
             ),
           ],
@@ -574,75 +698,88 @@ class _CourseReportDetailScreenState extends State<CourseReportDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Список принимаемых препаратов',
-              style: GoogleFonts.lato(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Table(
-              border: TableBorder(
-                horizontalInside: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1,
-                ),
-              ),
-              columnWidths: const {
-                0: FlexColumnWidth(2),
-                1: FlexColumnWidth(1.5),
-                2: FlexColumnWidth(2),
-              },
+            Row(
               children: [
-                TableRow(
-                  children: [
-                    _buildTableHeader('Препарат'),
-                    _buildTableHeader('Дозировка'),
-                    _buildTableHeader('Частота'),
-                  ],
+                Icon(
+                  Icons.medication_liquid,
+                  color: const Color(0xFF007BFF),
+                  size: 24,
                 ),
-                ...medications.map((med) {
-                  final schedule = (med['schedule'] as List).join(', ');
-                  return _buildTableRow(med['name'], med['dosage'], schedule);
-                }).toList(),
+                const SizedBox(width: 8),
+                Text(
+                  'Препараты курса',
+                  style: GoogleFonts.lato(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
+            const SizedBox(height: 16),
+            ...medications.map((med) {
+              final schedule = (med['schedule'] as List).join(', ');
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF007BFF).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.medication,
+                          color: Color(0xFF007BFF),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              med['name'],
+                              style: GoogleFonts.lato(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              med['dosage'],
+                              style: GoogleFonts.lato(
+                                fontSize: 14,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              schedule,
+                              style: GoogleFonts.lato(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTableHeader(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Text(
-        text,
-        style: GoogleFonts.lato(
-          fontWeight: FontWeight.bold,
-          color: Colors.grey.shade600,
-        ),
-      ),
-    );
-  }
-
-  TableRow _buildTableRow(String name, String dosage, String schedule) {
-    return TableRow(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
-          child: Text(name, style: GoogleFonts.lato(fontSize: 15)),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
-          child: Text(dosage, style: GoogleFonts.lato(fontSize: 15)),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
-          child: Text(schedule, style: GoogleFonts.lato(fontSize: 15)),
-        ),
-      ],
     );
   }
 }

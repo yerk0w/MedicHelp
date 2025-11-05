@@ -1,10 +1,12 @@
+// lib/screens/profile_screen.dart - рефакторинг с использованием ApiService
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:medichelp/screens/edit_profile_screen.dart';
 import 'package:medichelp/screens/login_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:medichelp/screens/courses_screen.dart';
+import 'package:medichelp/services/api_service.dart';
+import 'package:medichelp/models/course_model.dart';
 
 class ProfileScreenContent extends StatefulWidget {
   const ProfileScreenContent({super.key});
@@ -14,10 +16,10 @@ class ProfileScreenContent extends StatefulWidget {
 }
 
 class _ProfileScreenContentState extends State<ProfileScreenContent> {
-  final _storage = const FlutterSecureStorage();
   String _userName = "Загрузка...";
   String _userEmail = "...";
-  Map<String, dynamic>? _medicalCard;
+  MedicalCard? _medicalCard;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -26,48 +28,42 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
   }
 
   Future<void> _loadProfileData() async {
-    final token = await _storage.read(key: 'jwt_token');
-    if (token == null) {
-      _logout();
-      return;
-    }
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5001/api/profile'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
+      final profileData = await ApiService.getProfile();
+      final profile = UserProfile.fromJson(profileData);
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (mounted) {
-          setState(() {
-            _userName = data['name'] ?? 'Пользователь';
-            _userEmail = data['email'] ?? 'email@example.com';
-            _medicalCard = data['medicalCard'];
-          });
-        }
-      } else {
-        await _storage.deleteAll();
-        if (mounted) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (route) => false,
-          );
-        }
+      if (mounted) {
+        setState(() {
+          _userName = profile.name;
+          _userEmail = profile.email;
+          _medicalCard = profile.medicalCard;
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка сети: $e')));
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Если ошибка авторизации - выходим
+        if (e.toString().contains('401') || e.toString().contains('Токен')) {
+          _logout();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ошибка загрузки профиля: $e')),
+          );
+        }
       }
     }
   }
 
   Future<void> _logout() async {
-    await _storage.deleteAll();
+    await ApiService.deleteToken();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -78,11 +74,12 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
   }
 
   void _navigateToEdit() async {
+    if (_medicalCard == null) return;
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            EditProfileScreen(medicalCard: _medicalCard ?? {}),
+        builder: (context) => EditProfileScreen(medicalCard: _medicalCard!),
       ),
     );
 
@@ -91,16 +88,29 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
     }
   }
 
+  void _navigateToCourses() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CoursesScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
       body: RefreshIndicator(
         onRefresh: _loadProfileData,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [_buildHeader(), _buildMedicalCard()],
-        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _buildHeader(),
+                  _buildActionButtons(),
+                  _buildMedicalCard(),
+                ],
+              ),
       ),
     );
   }
@@ -127,22 +137,52 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
             child: Icon(Icons.person, size: 40, color: Color(0xFF15A4C4)),
           ),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _userName,
-                style: GoogleFonts.lato(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _userName,
+                  style: GoogleFonts.lato(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
+                Text(
+                  _userEmail,
+                  style: GoogleFonts.lato(fontSize: 16, color: Colors.white70),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _navigateToCourses,
+              icon: const Icon(Icons.medical_services, size: 20),
+              label: const Text('Курсы лечения'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF007BFF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
               ),
-              Text(
-                _userEmail,
-                style: GoogleFonts.lato(fontSize: 16, color: Colors.white70),
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -150,8 +190,31 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
   }
 
   Widget _buildMedicalCard() {
+    if (_medicalCard == null) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
+              const SizedBox(height: 8),
+              Text(
+                'Ошибка загрузки данных',
+                style: GoogleFonts.lato(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -191,34 +254,25 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildInfoRow(
-            "Полное имя",
-            _medicalCard?['fullName'] ?? "Не указано",
-          ),
-          _buildInfoRow(
-            "Дата рождения",
-            _medicalCard?['birthDate'] ?? "Не указано",
-          ),
-          _buildInfoRow(
-            "Группа крови",
-            _medicalCard?['bloodType'] ?? "Не указано",
-          ),
-          _buildInfoRow("Аллергии", _medicalCard?['allergies'] ?? "Не указано"),
+          _buildInfoRow("Полное имя", _medicalCard!.fullName),
+          _buildInfoRow("Дата рождения", _medicalCard!.birthDate),
+          _buildInfoRow("Группа крови", _medicalCard!.bloodType),
+          _buildInfoRow("Аллергии", _medicalCard!.allergies),
           _buildInfoRow(
             "Хронические заболевания",
-            _medicalCard?['chronicDiseases'] ?? "Не указано",
+            _medicalCard!.chronicDiseases,
           ),
           _buildInfoRow(
             "Контакт для экстренной связи",
-            _medicalCard?['emergencyContact'] ?? "Не указано",
+            _medicalCard!.emergencyContact,
           ),
           _buildInfoRow(
             "Номер медицинской страховки",
-            _medicalCard?['insuranceNumber'] ?? "Не указано",
+            _medicalCard!.insuranceNumber,
           ),
           _buildInfoRow(
             "Дополнительная информация",
-            _medicalCard?['additionalInfo'] ?? "Не указано",
+            _medicalCard!.additionalInfo,
             isLast: true,
           ),
           const SizedBox(height: 24),
@@ -246,7 +300,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
   }
 
   Widget _buildInfoRow(String title, String value, {bool isLast = false}) {
-    final displayValue = (value.isEmpty) ? "Не указано" : value;
+    final displayValue = value.isEmpty ? "Не указано" : value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

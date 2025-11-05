@@ -3,6 +3,19 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const HealthEntry = require("../User/HealthEntry");
 
+router.get("/", auth, async (req, res) => {
+  try {
+    const entries = await HealthEntry.find({ userId: req.user.id })
+      .sort({ entryDate: -1 })
+      .limit(100);
+
+    res.json(entries);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Ошибка сервера");
+  }
+});
+
 router.post("/", auth, async (req, res) => {
   try {
     const {

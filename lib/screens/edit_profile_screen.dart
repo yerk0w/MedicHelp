@@ -1,11 +1,12 @@
+// lib/screens/edit_profile_screen.dart - рефакторинг с использованием ApiService
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:medichelp/services/api_service.dart';
+import 'package:medichelp/models/course_model.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  final Map<String, dynamic> medicalCard;
+  final MedicalCard medicalCard;
 
   const EditProfileScreen({super.key, required this.medicalCard});
 
@@ -14,7 +15,6 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final _storage = const FlutterSecureStorage();
   late TextEditingController _fullNameController;
   late TextEditingController _birthDateController;
   late TextEditingController _bloodTypeController;
@@ -30,28 +30,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _fullNameController = TextEditingController(
-      text: widget.medicalCard['fullName'],
+      text: widget.medicalCard.fullName,
     );
     _birthDateController = TextEditingController(
-      text: widget.medicalCard['birthDate'],
+      text: widget.medicalCard.birthDate,
     );
     _bloodTypeController = TextEditingController(
-      text: widget.medicalCard['bloodType'],
+      text: widget.medicalCard.bloodType,
     );
     _allergiesController = TextEditingController(
-      text: widget.medicalCard['allergies'],
+      text: widget.medicalCard.allergies,
     );
     _chronicDiseasesController = TextEditingController(
-      text: widget.medicalCard['chronicDiseases'],
+      text: widget.medicalCard.chronicDiseases,
     );
     _emergencyContactController = TextEditingController(
-      text: widget.medicalCard['emergencyContact'],
+      text: widget.medicalCard.emergencyContact,
     );
     _insuranceNumberController = TextEditingController(
-      text: widget.medicalCard['insuranceNumber'],
+      text: widget.medicalCard.insuranceNumber,
     );
     _additionalInfoController = TextEditingController(
-      text: widget.medicalCard['additionalInfo'],
+      text: widget.medicalCard.additionalInfo,
     );
   }
 
@@ -73,42 +73,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _isLoading = true;
     });
 
-    final token = await _storage.read(key: 'jwt_token');
-    if (token == null) {
-      _showErrorDialog('Ошибка авторизации');
-      return;
-    }
-
-    final body = json.encode({
-      'fullName': _fullNameController.text,
-      'birthDate': _birthDateController.text,
-      'bloodType': _bloodTypeController.text,
-      'allergies': _allergiesController.text,
-      'chronicDiseases': _chronicDiseasesController.text,
-      'emergencyContact': _emergencyContactController.text,
-      'insuranceNumber': _insuranceNumberController.text,
-      'additionalInfo': _additionalInfoController.text,
-    });
-
     try {
-      final response = await http.put(
-        Uri.parse('http://localhost:5001/api/profile'),
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer $token',
-        },
-        body: body,
-      );
+      final profileData = {
+        'fullName': _fullNameController.text,
+        'birthDate': _birthDateController.text,
+        'bloodType': _bloodTypeController.text,
+        'allergies': _allergiesController.text,
+        'chronicDiseases': _chronicDiseasesController.text,
+        'emergencyContact': _emergencyContactController.text,
+        'insuranceNumber': _insuranceNumberController.text,
+        'additionalInfo': _additionalInfoController.text,
+      };
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          Navigator.pop(context, true);
-        }
-      } else {
-        _showErrorDialog('Не удалось сохранить. ${response.body}');
+      await ApiService.updateProfile(profileData);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Профиль успешно обновлен'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true);
       }
     } catch (e) {
-      _showErrorDialog('Ошибка подключения: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка сохранения: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -116,23 +112,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         });
       }
     }
-  }
-
-  void _showErrorDialog(String message) {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Ошибка'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            child: const Text('OK'),
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-        ],
-      ),
-    );
   }
 
   @override

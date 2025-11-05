@@ -207,5 +207,6 @@ app.use('/api/profile', require('./routes/profile'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use("/api/courses", require("./routes/courses"));
 app.use("/api/report", require("./routes/report"));
+app.use("/api/insight", require("./routes/insight"));
 
 app.listen(PORT, () => console.log(`server run on port ${PORT}`));

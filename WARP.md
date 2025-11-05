@@ -3,11 +3,13 @@
 This file provides guidance to WARP (warp.dev) when working with code in this repository.
 
 Project overview
+
 - This is a two-part app:
   - Flutter client in lib/ (Android, iOS, macOS targets present) that talks to a local API.
   - Node.js/Express + MongoDB backend in back/ with JWT auth and optional AI analytics via Google Generative AI.
 
 Key development commands
+
 - Backend (Node/Express):
   - Install deps: npm install
   - Run API (expects env vars below): node back/server.js
@@ -23,6 +25,7 @@ Key development commands
   - iOS (requires Xcode setup): flutter build ios --release
 
 Environment
+
 - Backend reads from back/.env (not committed here). Required keys inferred from code:
   - MONGO_URI: MongoDB connection string
   - JWT_SECRET: secret for signing JWTs
@@ -30,6 +33,7 @@ Environment
   - PORT: optional (defaults to 5001)
 
 Big-picture architecture
+
 - Flutter client
   - Entry point lib/main.dart sets MaterialApp routes: /home, /login, /register, /profile, /analytics, /entry_form, /report.
   - Auth flow: register/login hit http://localhost:5001/api/register and /api/login. On success, a JWT is stored via flutter_secure_storage under keys jwt_token, user_name, user_email.
@@ -60,6 +64,7 @@ Big-picture architecture
     - HealthEntry.js: per-user daily entry with entryDate, medications[{ name, taken }], headacheLevel (0..10), symptomTags, lifestyleTags, notes.
 
 Operational notes
+
 - Port coordination: Flutter screens assume the API is on :5001; keep PORT aligned or update the Dart URLs.
 - AI analytics are optional: if GOOGLE_API_KEY is missing, /api/analytics will fail; other endpoints continue to work.
 - Linting: Dart lints are configured via analysis_options.yaml (flutter_lints). No JS linter/test runner is configured for the backend.

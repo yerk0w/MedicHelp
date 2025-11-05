@@ -1,4 +1,4 @@
-// lib/screens/analytics_screen.dart - рефакторинг с использованием ApiService
+
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -59,7 +59,7 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
     try {
       final entriesJson = await ApiService.getEntries();
 
-      // Фильтруем записи по выбранному периоду
+
       final now = DateTime.now();
       final daysToShow = _getDaysToShow();
       final cutoffDate = now.subtract(Duration(days: daysToShow));
@@ -69,14 +69,14 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
         return entryDate.isAfter(cutoffDate);
       }).toList();
 
-      // Сортируем по дате
+
       recentEntries.sort((a, b) {
         final dateA = DateTime.parse(a['entryDate']);
         final dateB = DateTime.parse(b['entryDate']);
         return dateA.compareTo(dateB);
       });
 
-      // Создаем точки для графика
+
       final spots = <FlSpot>[];
       final entries = <HealthEntry>[];
 
@@ -104,9 +104,9 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
   }
 
   int _getDaysToShow() {
-    if (_isSelected[0]) return 7; // Неделя
-    if (_isSelected[1]) return 30; // Месяц
-    return 365; // Все время
+    if (_isSelected[0]) return 7;
+    if (_isSelected[1]) return 30;
+    return 365;
   }
 
   @override
@@ -357,7 +357,7 @@ class _AnalyticsScreenContentState extends State<AnalyticsScreenContent> {
           dotData: FlDotData(
             show: true,
             getDotPainter: (spot, percent, barData, index) {
-              // Проверяем, были ли приняты лекарства в этот день
+
               if (index < _entries.length) {
                 final hasMedication = _entries[index].medicationsTaken.any(
                   (m) => m.status == 'taken',

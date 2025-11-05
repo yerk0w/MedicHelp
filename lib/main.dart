@@ -1,4 +1,4 @@
-// lib/main.dart - добавить локализацию и улучшить инициализацию
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -25,7 +25,7 @@ class HealthCompassApp extends StatelessWidget {
       title: 'MedicHelp',
       debugShowCheckedModeBanner: false,
 
-      // Локализация
+
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -34,13 +34,13 @@ class HealthCompassApp extends StatelessWidget {
       supportedLocales: const [Locale('ru', 'RU'), Locale('en', 'US')],
       locale: const Locale('ru', 'RU'),
 
-      // Тема
+
       theme: ThemeData(
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: const Color(0xFFF4F6F8),
         useMaterial3: true,
 
-        // Цветовая схема
+
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF007BFF),
           primary: const Color(0xFF007BFF),
@@ -48,7 +48,7 @@ class HealthCompassApp extends StatelessWidget {
           surface: Colors.white,
         ),
 
-        // Стиль AppBar
+
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFFF4F6F8),
           elevation: 0,
@@ -60,7 +60,7 @@ class HealthCompassApp extends StatelessWidget {
           ),
         ),
 
-        // Стиль карточек
+
         cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
@@ -69,7 +69,7 @@ class HealthCompassApp extends StatelessWidget {
           color: Colors.white,
         ),
 
-        // Стиль кнопок
+
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF007BFF),
@@ -82,7 +82,7 @@ class HealthCompassApp extends StatelessWidget {
           ),
         ),
 
-        // Стиль текстовых полей
+
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
@@ -108,14 +108,14 @@ class HealthCompassApp extends StatelessWidget {
           ),
         ),
 
-        // Стиль прогресс-баров
+
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: Color(0xFF007BFF),
           linearTrackColor: Color(0xFFE0E0E0),
         ),
       ),
 
-      // Навигация
+
       home: const SplashScreen(),
       routes: {
         '/main': (context) => const MainScreen(),
@@ -127,7 +127,7 @@ class HealthCompassApp extends StatelessWidget {
   }
 }
 
-// Экран загрузки с проверкой авторизации
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -143,18 +143,18 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuth() async {
-    // Небольшая задержка для показа splash screen
+
     await Future.delayed(const Duration(seconds: 1));
 
-    // Проверяем наличие токена
+
     final token = await ApiService.getToken();
 
     if (mounted) {
       if (token != null && token.isNotEmpty) {
-        // Если токен есть - переходим на главный экран
+
         Navigator.pushReplacementNamed(context, '/main');
       } else {
-        // Если токена нет - на экран входа
+
         Navigator.pushReplacementNamed(context, '/login');
       }
     }

@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:medichelp/screens/main_screen.dart';
-import 'package:medichelp/config/api_config.dart'; // ДОБАВЛЕНО
+import 'package:medichelp/config/api_config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // ИСПРАВЛЕНО: используем ApiConfig вместо хардкода
+
     final String apiUrl = ApiConfig.login;
 
     try {
@@ -93,17 +93,17 @@ class _LoginScreenState extends State<LoginScreen> {
     final TextEditingController resetCodeController = TextEditingController();
     final TextEditingController newPasswordController = TextEditingController();
     bool isLoading = false;
-    int _currentStep = 0; // 0 - для email, 1 - для кода и нового пароля
-    String userEmail = ''; // Сохраним email для Шага 2
+    int _currentStep = 0;
+    String userEmail = '';
 
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        // ИСПОЛЬЗУЕМ StateSetter ДЛЯ ОБНОВЛЕНИЯ ДИАЛОГА
+
         return StatefulBuilder(
           builder: (context, StateSetter setDialogState) {
-            // --- Виджет для Шага 0 (Ввод Email) ---
+
             Widget _buildStep0() {
               return Column(
                 mainAxisSize: MainAxisSize.min,
@@ -130,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             }
 
-            // --- Виджет для Шага 1 (Ввод Кода и Нового Пароля) ---
+
             Widget _buildStep1() {
               return Column(
                 mainAxisSize: MainAxisSize.min,
@@ -171,9 +171,9 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             }
 
-            // --- Логика нажатия на главную кнопку ---
+
             void _handleSubmit() async {
-              // Валидация
+
               if (_currentStep == 0) {
                 userEmail = resetEmailController.text.trim();
                 if (userEmail.isEmpty) {
@@ -199,14 +199,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 }
               }
 
-              // ИСПОЛЬЗУЕМ 'setDialogState'
+
               setDialogState(() {
                 isLoading = true;
               });
 
               try {
                 if (_currentStep == 0) {
-                  // --- ШАГ 0: Отправка Email ---
+
                   final response = await http.post(
                     Uri.parse(ApiConfig.forgotPassword),
                     headers: ApiConfig.defaultHeaders,
@@ -214,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   );
 
                   if (response.statusCode == 200) {
-                    // УСПЕХ! ПЕРЕХОДИМ НА ШАГ 1
+
                     setDialogState(() {
                       _currentStep = 1;
                       isLoading = false;
@@ -229,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     );
                   } else {
-                    // Ошибка на Шаге 0
+
                     final data = json.decode(response.body);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -240,13 +240,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         backgroundColor: Colors.red,
                       ),
                     );
-                    // ИСПРАВЛЕНО: Выключаем загрузку при ошибке
+
                     setDialogState(() {
                       isLoading = false;
                     });
                   }
                 } else {
-                  // --- ШАГ 1: Отправка Кода и Нового Пароля ---
+
                   final code = resetCodeController.text.trim();
                   final newPassword = newPasswordController.text.trim();
 
@@ -261,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   );
 
                   if (response.statusCode == 200) {
-                    // ВСЕ ГОТОВО!
+
                     if (dialogContext.mounted) {
                       Navigator.of(dialogContext).pop();
                     }
@@ -275,9 +275,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         duration: Duration(seconds: 4),
                       ),
                     );
-                    // Не нужен setDialogState, так как диалог закрывается
+
                   } else {
-                    // Ошибка на Шаге 1
+
                     final data = json.decode(response.body);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -288,7 +288,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         backgroundColor: Colors.red,
                       ),
                     );
-                    // ИСПРАВЛЕНО: Выключаем загрузку при ошибке
+
                     setDialogState(() {
                       isLoading = false;
                     });
@@ -301,17 +301,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     backgroundColor: Colors.red,
                   ),
                 );
-                // ИСПРАВЛЕНО: Выключаем загрузку при ошибке
+
                 setDialogState(() {
                   isLoading = false;
                 });
               }
-              // ИСПРАВЛЕНО: Блок 'finally' УДАЛЕН,
-              // так как 'isLoading = false' теперь обрабатывается
-              // в каждом блоке 'if/else' и 'catch'
+
+
+
             }
 
-            // --- Сборка самого AlertDialog ---
+
             return AlertDialog(
               title: Text(
                 'Восстановление пароля',

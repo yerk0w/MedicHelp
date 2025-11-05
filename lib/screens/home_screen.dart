@@ -1,4 +1,4 @@
-// lib/screens/home_screen.dart - использовать ApiConfig
+
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,13 +22,13 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
   final _storage = const FlutterSecureStorage();
   List<Map<String, dynamic>> _medications = [];
 
-  // Данные прогресса курса
+
   String _courseName = "";
   int _daysPassed = 0;
   int _totalDays = 0;
   double _progress = 0.0;
 
-  // Инсайды дня
+
   String _healthFactText = "Загрузка факта...";
   String _motivationText = "";
   bool _hasEntryToday = true;
@@ -128,14 +128,14 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
           return;
         }
 
-        // Берем первый курс
+
         final course = courses[0];
         final startDate = DateTime.parse(course['startDate']);
         final endDate = course['endDate'] != null
             ? DateTime.parse(course['endDate'])
             : DateTime.now().add(
                 const Duration(days: 30),
-              ); // Если нет endDate, берем +30 дней
+              );
 
         final now = DateTime.now();
         final totalDays = endDate.difference(startDate).inDays;

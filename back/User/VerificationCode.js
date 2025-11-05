@@ -25,7 +25,7 @@ const VerificationCodeSchema = new mongoose.Schema({
   },
 });
 
-// Автоматическое удаление истекших кодов
+
 VerificationCodeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model("VerificationCode", VerificationCodeSchema);

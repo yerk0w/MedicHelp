@@ -143,7 +143,6 @@ const truncate = (text, max) => {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 };
 
-// GET /api/insight/today
 router.get("/today", auth, async (req, res) => {
   try {
     const recentEntries = await HealthEntry.find({

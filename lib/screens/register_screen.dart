@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:medichelp/config/api_config.dart'; // ДОБАВЛЕНО
+import 'package:medichelp/config/api_config.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -47,7 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // ИСПРАВЛЕНО: используем ApiConfig вместо хардкода
+
     final String apiUrl = ApiConfig.register;
 
     try {

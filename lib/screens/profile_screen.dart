@@ -1,4 +1,4 @@
-// lib/screens/profile_screen.dart - рефакторинг с использованием ApiService
+
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -50,7 +50,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
           _isLoading = false;
         });
 
-        // Если ошибка авторизации - выходим
+
         if (e.toString().contains('401') || e.toString().contains('Токен')) {
           _logout();
         } else {

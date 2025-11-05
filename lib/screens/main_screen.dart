@@ -18,7 +18,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const HomeScreenContent(),
     const AnalyticsScreenContent(),
-    const SizedBox(), // Placeholder для entry_form
+    const SizedBox(),
     const ReportScreenContent(),
     const ProfileScreenContent(),
   ];

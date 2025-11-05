@@ -1,4 +1,4 @@
-// lib/screens/courses_screen.dart - рефакторинг с использованием ApiService и моделей
+
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -294,7 +294,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
   }
 }
 
-// Форма создания/редактирования курса
+
 class CourseFormScreen extends StatefulWidget {
   final Course? course;
 
@@ -482,7 +482,7 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
   }
 }
 
-// Детали курса с лекарствами
+
 class CourseDetailsScreen extends StatefulWidget {
   final String courseId;
   final String courseName;
@@ -623,7 +623,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
   }
 }
 
-// Форма добавления лекарства
+
 class MedicationFormScreen extends StatefulWidget {
   final String courseId;
 

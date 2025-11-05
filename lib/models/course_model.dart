@@ -1,4 +1,4 @@
-// lib/models/course_model.dart - создать модели данных
+
 
 class Course {
   final String id;

@@ -1,4 +1,4 @@
-// lib/screens/report_screen.dart - рефакторинг с использованием ApiService
+
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -203,7 +203,7 @@ class _ReportScreenContentState extends State<ReportScreenContent> {
   }
 }
 
-// Экран детального отчета по курсу
+
 class CourseReportDetailScreen extends StatefulWidget {
   final String courseId;
   final String courseName;

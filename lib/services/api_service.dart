@@ -1,4 +1,4 @@
-// lib/services/api_service.dart - создать сервисный слой для API запросов
+
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -8,17 +8,17 @@ import 'package:medichelp/config/api_config.dart';
 class ApiService {
   static const _storage = FlutterSecureStorage();
 
-  // Получить токен
+
   static Future<String?> getToken() async {
     return await _storage.read(key: 'jwt_token');
   }
 
-  // Сохранить токен
+
   static Future<void> saveToken(String token) async {
     await _storage.write(key: 'jwt_token', value: token);
   }
 
-  // Удалить токен
+
   static Future<void> deleteToken() async {
     await _storage.delete(key: 'jwt_token');
     await _storage.delete(key: 'user_name');
@@ -26,7 +26,7 @@ class ApiService {
     await _storage.delete(key: 'user_role');
   }
 
-  // GET запрос
+
   static Future<http.Response> get(String url) async {
     final token = await getToken();
     if (token == null) {
@@ -39,7 +39,7 @@ class ApiService {
     );
   }
 
-  // POST запрос
+
   static Future<http.Response> post(
     String url,
     Map<String, dynamic> body,
@@ -56,7 +56,7 @@ class ApiService {
     );
   }
 
-  // POST запрос без авторизации
+
   static Future<http.Response> postPublic(
     String url,
     Map<String, dynamic> body,
@@ -68,7 +68,7 @@ class ApiService {
     );
   }
 
-  // PUT запрос
+
   static Future<http.Response> put(
     String url,
     Map<String, dynamic> body,
@@ -85,7 +85,7 @@ class ApiService {
     );
   }
 
-  // DELETE запрос
+
   static Future<http.Response> delete(String url) async {
     final token = await getToken();
     if (token == null) {
@@ -98,7 +98,7 @@ class ApiService {
     );
   }
 
-  // Универсальный обработчик ответов
+
   static Map<String, dynamic> handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return json.decode(response.body);
@@ -108,7 +108,7 @@ class ApiService {
     }
   }
 
-  // API методы для курсов
+
   static Future<List<dynamic>> getCourses() async {
     final response = await get(ApiConfig.courses);
     final body = json.decode(response.body);
@@ -148,7 +148,7 @@ class ApiService {
     handleResponse(response);
   }
 
-  // API методы для записей
+
   static Future<List<dynamic>> getEntries() async {
     final response = await get(ApiConfig.entries);
     final body = json.decode(response.body);
@@ -170,7 +170,7 @@ class ApiService {
     return handleResponse(response);
   }
 
-  // API методы для профиля
+
   static Future<Map<String, dynamic>> getProfile() async {
     final response = await get(ApiConfig.profile);
     return handleResponse(response);
@@ -183,7 +183,7 @@ class ApiService {
     return handleResponse(response);
   }
 
-  // API методы для аналитики
+
   static Future<Map<String, dynamic>> getAnalytics() async {
     final response = await get(ApiConfig.analytics);
     return handleResponse(response);
@@ -194,7 +194,7 @@ class ApiService {
     return handleResponse(response);
   }
 
-  // API методы для управления пациентами (для врачей)
+
   static Future<Map<String, dynamic>> createPatient(
     Map<String, dynamic> patientData,
   ) async {
@@ -202,13 +202,13 @@ class ApiService {
     return handleResponse(response);
   }
 
-  // API методы для отчетов
+
   static Future<Map<String, dynamic>> getReportByCourse(String courseId) async {
     final response = await get(ApiConfig.reportByCourse(courseId));
     return handleResponse(response);
   }
 
-  // API методы для медикаментов
+
   static Future<Map<String, dynamic>> addMedication(
     String courseId,
     Map<String, dynamic> medicationData,

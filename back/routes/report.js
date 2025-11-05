@@ -14,13 +14,13 @@ router.get("/:courseId", auth, async (req, res) => {
     const courseId = req.params.courseId;
     const userId = req.user.id;
 
-    // 1. Получаем пользователя и медкарту
+
     const user = await User.findById(userId).select("-password");
     if (!user) {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
 
-    // 2. Получаем курс лечения
+
     const course = await TreatmentCourse.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: "Курс не найден" });
@@ -29,16 +29,16 @@ router.get("/:courseId", auth, async (req, res) => {
       return res.status(403).json({ message: "Доступ запрещен" });
     }
 
-    // 3. Получаем все записи по курсу
+
     const entries = await HealthEntry.find({
       userId: userId,
       courseId: courseId,
     }).sort({ entryDate: 1 });
 
-    // 4. Получаем лекарства курса
+
     const medications = await Medication.find({ courseId: courseId });
 
-    // 5. Формируем промпт для ИИ
+
     const medCardText = `
 Медицинская карта пациента:
 - ФИО: ${user.medicalCard?.fullName || "Не указано"}
@@ -110,7 +110,7 @@ ${entriesText}
 }
         `.trim();
 
-    // 6. Вызов ИИ
+
     let aiSummary = {};
     try {
       const model = genAI.getGenerativeModel({
@@ -120,7 +120,7 @@ ${entriesText}
       const response = await result.response;
       const text = response.text();
 
-      // Пытаемся распарсить JSON из ответа
+
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         aiSummary = JSON.parse(jsonMatch[0]);
@@ -132,7 +132,7 @@ ${entriesText}
       aiSummary = { error: "Не удалось получить анализ ИИ" };
     }
 
-    // 7. Статистика
+
     const totalMedications = entries.reduce(
       (sum, entry) => sum + (entry.medicationsTaken?.length || 0),
       0
@@ -165,7 +165,7 @@ ${entriesText}
       })),
     };
 
-    // 8. Ответ
+
     res.status(200).json({
       statistics,
       aiSummary,
